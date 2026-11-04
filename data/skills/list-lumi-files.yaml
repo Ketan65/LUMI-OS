@@ -1,0 +1,21 @@
+name: list-lumi-files
+description: C:\LUMI ki files list karo, unki importance batao
+trigger_examples:
+- list files in C:\LUMI
+- show me what's inside LUMI folder
+- C:\LUMI ki files dikhao
+- LUMI directory ka content batao
+required_tools:
+- list_files
+steps:
+- Call list_files with path "C:\\LUMI"
+- Capture the returned list of top‑level items
+- For each item, create a short importance note based on its name
+- 'Format the result as a markdown bullet list: `- item – note`'
+- Return the formatted list as the final answer
+source_reflection: 2
+status: retired
+created: '2026-10-09T02:13:14'
+last_used: '2026-10-09T02:27:45'
+uses: 1
+successes: 1

@@ -1,0 +1,20 @@
+name: store-user-name
+description: User ka naam file me save karke confirmation dena
+trigger_examples:
+- mera naam ___ hai
+- mere naam ko yaad rakho
+- naam store karo
+required_tools:
+- write_file
+steps:
+- User se naam input lena
+- Save karne ke liye file path lena (C:\LUMI\workspace\user_name.txt)
+- write_file tool se file me naam likhna
+- Tool se success response check karna
+- User ko confirmation message dena
+source_reflection: 0
+status: candidate
+created: '2026-10-09T09:43:44'
+last_used: ''
+uses: 0
+successes: 0

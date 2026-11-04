@@ -1,0 +1,257 @@
+# Local brain engine: auto | transformers | ollama
+local_engine: ollama
+merged_model_path: models/lumi-qwen3-4b-hinglish-merged
+# LUMI — main config
+# LUMI local fallback brain — qwen3:8b (downloaded ✓, R3)
+model_name: hermes3:latest
+
+persona:
+  name: LUMI
+  language: Hinglish
+  tone: super_intelligent_partner
+  examples: |
+    Examples (sirf STYLE aur VIBE yahan se sikho — TEXT copy mat karo):
+
+    User: what is your name?
+    SAHI: Main **LUMI** hoon — aapka supreme personal co-pilot aur digital partner. Bolo Boss, aaj kya next-level cheez banayein?
+
+    User: recursion kya hota hai?
+    SAHI: Recursion = function jo **base case** milne tak khud ko call karta hai; base case miss = stack overflow. Crisp Hinglish explanation + ek production tip (iteration/memoization).
+
+# orchestrator loop cap (tool iterations per user turn)
+max_iterations: 10
+
+# system prompt word budget (persona + lessons + facts) — persona-upgrade +
+# evolution lessons ke baad 600 chhota pad gaya tha, isliye 700
+prompt_word_budget: 700
+
+# LLM sampling — local ollama options (cloud apni API pe alag se tune hota hai)
+llm:
+  temperature: 0.55     # sharp, deterministic engineering + natural Hinglish
+  num_predict: 2048     # max reply tokens (cut-off replies se bachne ke liye)
+  num_ctx: 4096         # 4096 = 8B model fits 100% in 8GB RTX 5060 VRAM (zero RAM spill)
+  keep_alive: "-1"      # model VRAM me hamesha — har chat pe reload nahi
+
+# safety gate: per-tool policy (auto | ask | block), falls back to tool risk
+permissions:
+  list_files: auto
+  read_file: auto
+  search_files: auto
+  grep_search: auto
+  write_file: ask
+  edit_file: ask
+  delete_file: ask
+  register_project: ask     # naya folder = naya file access -> hamesha pucho
+  web_search: auto
+  web_read: auto
+  run_python: auto
+  run_command: auto
+  disk_report: auto
+  set_reminder: auto
+  list_reminders: auto
+  cancel_reminder: auto
+  open_app: auto
+  open_url: auto
+  system_control: auto
+  analyze_screen: auto
+  execute_goal: auto
+  search_memory: auto
+  gui_control: auto
+  sentry_status: auto
+  presence_status: auto
+  configure_biometrics: ask
+  enroll_master_face: ask
+  privacy_shield_control: auto
+  lock_workstation_now: auto
+  forge_custom_tool: ask
+  list_synthesized_tools: auto
+  revoke_synthesized_tool: ask
+  benchmark_synthesized_tool: auto
+  record_finance_transaction: auto
+  get_financial_summary: auto
+  track_recurring_subscription: auto
+  list_active_subscriptions: auto
+  generate_client_invoice: auto
+  deep_reason: auto
+  verify_hypothesis: auto
+  get_reasoning_history: auto
+  detect_voice_affect: auto
+  configure_vocal_affect: auto
+  get_vocal_affect_status: auto
+  cluster_node_status: auto
+  mesh_dispatch_task: ask
+  sync_cluster_state: auto
+  register_mesh_node: ask
+  # NOTE (safety/gate.py): LUMI home ke andar workspace\ me write = auto. LUMI ka
+  # apna code/config (workspace ke bahar, home ke andar) write/delete = BLOCK.
+  # Downloads jaise baaki roots me write = ask. delete band: delete_file: block
+
+# only these roots are readable/listable — edit freely
+allowed_paths:
+  - .
+  - ~/Downloads
+
+# memory layer
+memory:
+  db_path: data/lumi.db
+  backup_dir: data/backups
+  keep_backups: 7
+  history_limit: 20
+
+# NEURAL-VAULT — local semantic search: BM25 + Ollama embeddings (hybrid)
+vault:
+  semantic: true
+  embed_model: nomic-embed-text
+
+# skill library (req #5) — YAML recipes, user approve = active
+skills:
+  enabled: true
+  inject_max: 10
+  auto_propose: true
+
+# self-evolution (req #5) — reflection loop ka MVP
+evolution:
+  enabled: true
+  min_interval_min: 5        # auto-reflection cooldown
+  max_per_session: 3         # cost cap
+  inject_last_n: 5           # lessons prompt mein kitne
+  reflect_on: [tool_task, error_retry, session_end]
+  heartbeat_every_n: 10      # tool ke bina bhi har 10th turn pe
+
+# watchdog — anomaly alerts (req #11) — v1 NOTIFY ONLY (stop = permission, req #4)
+watchdog:
+  enabled: true
+  interval_s: 60
+  dedupe_cooldown_min: 30
+  critical_pauses: false        # notify-only default; pause = opt-in
+  loop_force_stop: true         # loop = defensive turn-stop (allowed per req #4)
+  rules:
+    disk_free_min_gb: 5         # <5GB WARN, <1GB CRITICAL
+    error_burst: 3              # errors in window
+    error_window_min: 5
+    fallback_burst: 3           # cloud→local fallbacks in window
+    fallback_window_min: 10
+    loop_repeat: 3              # same tool+args ×N in one turn/session
+    gate_block_burst: 5         # blocked attempts spike
+
+# ambie-sentry (Phase 7) — zero-prompt proactive guardian
+sentry:
+  enabled: true
+  interval_s: 25
+  battery_alert_pct: 20
+  ram_alert_pct: 90
+  watch_downloads: true
+  git_night_reminder: true
+
+# telegram bot (req #12) — free tier, sync polling; token = ENV VAR ONLY (NVIDIA rule)
+telegram:
+  enabled: true
+  allowed_chat_ids: []          # bootstrap: pehle msg se id hint (manual add)
+
+# voice input (req: voice IN) — faster-whisper LOCAL, free; model lazy-load once
+voice:
+  enabled: true
+  whisper_model: "small"        # Hinglish accuracy = small sweet spot
+  language: "auto"
+  device: "auto"                # try cuda → cpu fallback (gaming GPU)
+  tts:
+    enabled: true
+    engine: auto                # auto (ElevenLabs if ELEVENLABS_API_KEY present, else Edge-TTS)
+    voice: "hi-IN-MadhurNeural" # Natural Hinglish (or: hi-IN-SwaraNeural, eleven_adam, eleven_rachel)
+    rate: "+0%"
+    auto_speak: false
+    # offline NEURAL tier — Kokoro-82M ONNX (local CPU, zero internet; Edge fail / engine=offline)
+    offline_engine: neural      # neural = Kokoro → pyttsx3 chain | classic = pyttsx3 only
+    kokoro_model: "~/.cache/kokoro-onnx/kokoro-v1.1-zh.int8.onnx"
+    kokoro_voices: "~/.cache/kokoro-onnx/voices-v1.1-zh.bin"
+    kokoro_voice: auto          # auto = af_heart (Latin); Devanagari pe Hindi voice auto-pick
+    kokoro_speed: 1.0
+  stt:
+    enabled: true
+    model: "small"              # faster-whisper small — Hinglish sweet spot
+    language: "hi"              # Hindi priority; "auto" = detect
+    compute_type: "int8"        # CPU friendly; "float16" if CUDA available
+    device: "auto"              # auto | cpu | cuda
+  wake_word:
+    enabled: true
+    phrase: "hey lumi"          # wake word (STT-based match if openWakeWord models unavailable)
+    threshold: 0.5
+    cooldown_s: 2.0
+  vad_threshold: 0.5            # Silero VAD speech probability threshold
+
+# model router (local <-> NVIDIA cloud, auto fallback)
+router:
+  enabled: true
+  policy: prefer_local       # prefer_local | prefer_cloud (runtime: /model)
+  cloud_provider: nvidia
+  cloud_model: meta/llama-3.2-11b-vision-instruct  # active live model on build.nvidia.com
+  fallback_to_local: true
+  circuit_fail_threshold: 3 # utni baar cloud fail = N sec ke liye circuit open
+  circuit_cooldown_s: 120   # offline stretch me har turn ka timeout stall nahi
+  # API key = NVIDIA_API_KEY env var ONLY (setx NVIDIA_API_KEY "nvapi-...")
+  # config.yaml me key KABHI mat likho!
+
+# Alternative local models (Ollama) — router can switch between these
+local_models:
+  primary: "qwen2.5:3b"        # fast 3B local brain
+  hermes: "hermes3"           # Hermes 3 (Llama-3.1 8B) — agentic, tool-use, exponential growth
+  vision_vlm: "qwen2.5vl:3b"  # offline VLM — screen samajhta hai
+  # Available Ollama models: ollama list
+  # Pull hermes3: ollama pull hermes3  (4.7GB Q4, fits 8GB VRAM)
+
+# screen vision — cloud pehle (best quality), fail ya offline = local VLM
+vision:
+  engine: auto            # auto (cloud-first → local fallback) | local | cloud
+  cloud_model: meta/llama-3.2-11b-vision-instruct
+  local_model: qwen2.5vl:3b   # offline VLM — bina internet screen samajhta hai
+
+# MCP client servers (Phase 4: Google Workspace, Desktop control, etc.)
+mcp_servers:
+  google_workspace:
+    enabled: false
+    command: "uvx"
+    args: ["google-workspace-mcp"]
+    env:
+      GOOGLE_WORKSPACE_MCP_READONLY: "true"
+  desktop:
+    enabled: false
+    command: "python"
+    args: ["-m", "clawdcursor"]
+
+# biometric guard (Phase 13: Face & Physical Presence Sentry)
+biometrics:
+  enabled: true
+  auto_lock: false
+  lock_timeout_sec: 60
+  shoulder_surf_shield: true
+  camera_index: 0
+  interval_s: 1.0
+
+# sovereign mesh cluster (Phase 18: Multi-Device P2P & RTX 5060 Node Offloading)
+cluster:
+  enabled: true
+  node_id: "node_workstation_rtx3050"
+  role: "primary"
+  alias: "Boss Workstation (RTX 5060)"
+  host: "127.0.0.1"
+  port: 8765
+  secret_key: "lumi_mesh_sovereign_key"
+  peers:
+    - node_id: "node_laptop_zenbook"
+      alias: "Boss Satellite Laptop"
+      role: "satellite"
+      host: "127.0.0.1"
+      port: 8766
+      capabilities: ["ui", "web_browsing", "local_cli"]
+    - node_id: "node_phone_telegram"
+      alias: "Boss Mobile Terminal"
+      role: "client"
+      host: "127.0.0.1"
+      port: 8767
+      capabilities: ["messaging", "voice_notes", "telemetry"]
+  gpu_offload:
+    enabled: true
+    preferred_node: "node_workstation_rtx3050"
+    device: "NVIDIA GeForce RTX 5060 Laptop GPU"
+    tasks: ["vision", "audio_transcription", "deep_reasoning", "code_compilation"]
+

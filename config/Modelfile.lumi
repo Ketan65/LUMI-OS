@@ -1,0 +1,31 @@
+# Ollama Modelfile for LUMI fine-tuned model (Hinglish voice assistant)
+#
+# Build steps:
+#   1. python scripts/merge_lora.py --base Qwen/Qwen2.5-3B-Instruct --adapters models/lumi-qwen3-4b-hinglish --output models/lumi-qwen3-4b-hinglish-merged
+#   2. Convert merged HF model to GGUF (llama.cpp conversion script)
+#   3. ollama create lumi-hinglish -f Modelfile.lumi
+#   4. ollama run lumi-hinglish
+
+FROM ./models/lumi-qwen3-4b-hinglish-merged/qwen2.5-3b-instruct.Q4_K_M.gguf
+
+# System prompt — LUMI personality in Hinglish
+SYSTEM """You are LUMI, a helpful personal assistant. Reply in Hinglish (Hindi + English mix) naturally.
+You work both online (cloud brain) and offline (local qwen2.5-3b). You can help with code, daily tasks,
+emotional support, reminders, cooking, tech troubleshooting, and voice control. Keep replies concise,
+friendly, and in Hinglish unless asked otherwise."""
+
+# Sampling params tuned for conversational Hinglish
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+PARAMETER num_predict 512
+
+# Keep model resident in VRAM (no reload lag)
+PARAMETER keep_alive -1
+
+# Stop sequences
+PARAMETER stop "<|start_header_id|>"
+PARAMETER stop "<|end_header_id|>"
+PARAMETER stop "<|eot_id|>"

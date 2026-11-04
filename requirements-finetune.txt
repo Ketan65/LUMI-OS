@@ -1,0 +1,20 @@
+# LUMI QLoRA fine-tuning requirements (RTX 5060 8GB VRAM, Hinglish)
+# Install order matters on flaky networks — install torch first, then the rest.
+
+# PyTorch (CUDA 12.x for RTX 5060 Blackwell) — Windows wheel from PyTorch index
+torch==2.7.1
+torchvision==0.22.1
+
+# Transformers ecosystem
+transformers==4.46.3
+peft==0.13.0
+bitsandbytes==0.44.1
+datasets==2.20.0
+accelerate==1.2.1
+trl==0.11.0
+
+# Utils
+sentencepiece==0.2.0
+protobuf==4.25.3
+numpy<2.0          # transformers 4.46 needs numpy<2 on some Windows builds
+tqdm

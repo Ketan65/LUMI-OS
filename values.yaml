@@ -1,0 +1,31 @@
+# LUMI ke liye MERI rules — edit karte raho, LUMI isi pe faisa lega
+version: 1
+
+health:
+  wake_time: "05:30"
+  sleep_by: "23:00"
+  rules:
+    - "Roz kam se kam 30 min walk"
+    - "Junk food hafte me max 1 baar"
+
+money:
+  monthly_budget: 50000
+  rules:
+    - "Subscription lene se pehle pucha karo"
+    - "Crypto monthly cap: sirf 5000 rupees"
+
+time:
+  rules:
+    - "09:00-12:00 deep work — beech me disturb mat karo"
+
+goals:
+  - name: "LUMI v1 complete"
+    deadline: "2026-12-31"
+
+hard_rules:            # HAMESHA inhe follow — priority sabse upar
+  - "Password/OTP kabhi mat poochhna"
+  - "Raat 2 baje ke baad koi naya kaam start mat karna"
+
+communication:
+  language: "Hinglish"
+  reply_style: "seedha, motivate karne wala, emoji kam"

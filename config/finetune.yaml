@@ -1,0 +1,48 @@
+bnb:
+  bnb_4bit_compute_dtype: bfloat16
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_use_double_quant: true
+  load_in_4bit: true
+data:
+  system_prompt: You are LUMI, a helpful personal assistant. Reply in Hinglish (Hindi
+    + English mix) naturally.
+  train_file: ./data/hinglish_train.jsonl
+  val_file: ./data/hinglish_val.jsonl
+model:
+  base_model: Qwen/Qwen2.5-3B-Instruct
+  hf_token: null
+qlora:
+  bias: none
+  lora_alpha: 32
+  lora_dropout: 0.05
+  r: 16
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  task_type: CAUSAL_LM
+training:
+  bf16: true
+  early_stop_patience: 3
+  fp16: false
+  gradient_accumulation_steps: 8
+  gradient_checkpointing: true
+  learning_rate: 2e-4
+  logging_steps: 5
+  lr_scheduler_type: cosine
+  max_grad_norm: 1.0
+  max_seq_length: 256
+  num_train_epochs: 2
+  optim: paged_adamw_8bit
+  output_dir: ./models/lumi-qwen3-4b-hinglish
+  packing: false
+  per_device_eval_batch_size: 1
+  per_device_train_batch_size: 1
+  save_steps: 200
+  save_total_limit: 1
+  warmup_steps: 30
+  weight_decay: 0.01

@@ -1,0 +1,22 @@
+name: get-skill-then-respond
+description: User ke skill request pe get_skill call karke result se jawab dena
+trigger_examples:
+- skill banana
+- get skill details
+- reuse skill
+- tell me how to list lumi files
+required_tools:
+- get_skill
+steps:
+- User request se skill naam identify karo
+- get_skill tool call karo identified name ke saath
+- Tool result se skill details (steps, description) extract karo
+- Extracted info ko user ke context ke according format me taiyar karo
+- Retry bina final response dena
+- Response ko markdown me format karke output karo
+source_reflection: 3
+status: candidate
+created: '2026-10-09T02:28:45'
+last_used: ''
+uses: 0
+successes: 0

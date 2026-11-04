@@ -1,0 +1,20 @@
+name: list-lumi-folders
+description: C:\LUMI ke folders ki list nikalo
+trigger_examples:
+- folders list karo
+- C:\LUMI ka content dikhao
+- LUMI ki folders batao
+required_tools:
+- list_files
+steps:
+- list_files tool ko path "C:\LUMI" ke saath call karo
+- tool se mila result (files/folders list) ko parse karo
+- sirf directory entries ko filter karo
+- unke naam ek array mein collect karo
+- filtered folder names ko user ko return karo
+source_reflection: 0
+status: candidate
+created: '2026-10-09T02:29:29'
+last_used: ''
+uses: 0
+successes: 0

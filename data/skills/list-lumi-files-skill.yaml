@@ -1,0 +1,19 @@
+name: list-lumi-files-skill
+description: LUMI ki files list karne ka reusable recipe
+trigger_examples:
+- LUMI ki files dikhao
+- list lumi files
+- C:\LUMI ki files batao
+required_tools:
+- get_skill
+steps:
+- get_skill tool ko name 'list-lumi-files' ke saath call karo
+- Tool se mile result ko parse karke steps nikal lo
+- Milne wale steps ko numbered list ya bullets me clear tarah se likho
+- User ko final answer me sirf woh steps dena, extra filler nahi
+source_reflection: 0
+status: candidate
+created: '2026-10-09T02:28:24'
+last_used: ''
+uses: 0
+successes: 0

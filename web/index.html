@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cyber">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>LUMI // Sovereign AI Holographic Command Cockpit</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,5 95,27 95,73 50,95 5,73 5,27' fill='%2305050a' stroke='%2300ff9d' stroke-width='6'/><circle cx='50' cy='50' r='22' fill='%23fbbf24'/></svg>">
+
+  <!-- Futuristic Sci-Fi & Monospace Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Highlight.js + Marked + DOMPurify + Chart.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="/static/style.css?v=12.0">
+</head>
+<body>
+
+<!-- 3D Interactive Galaxy Starfield & Nebula Canvas -->
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+<div class="ambient-glow glow-1" aria-hidden="true"></div>
+<div class="ambient-glow glow-2" aria-hidden="true"></div>
+<div class="ambient-glow glow-3" aria-hidden="true"></div>
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<!-- Proactive Watchdog Alert Banner -->
+<div id="alertBanner" class="alertbanner hidden" role="status">
+  <span class="alert-icon">⚡</span>
+  <span id="alertText"></span>
+  <button id="alertDismiss" title="Dismiss alert">✕</button>
+</div>
+
+<!-- Floating Action Toast Banner -->
+<div id="banner" class="banner hidden" role="alert"></div>
+
+<!-- =====================================================================
+     TOP HOLOGRAPHIC COMMAND BAR (HUD HEADER)
+     ===================================================================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="icon-btn" id="sidebarToggle" title="Toggle Left Telemetry Wing (Ctrl+B)" aria-label="Toggle Left Wing">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/>
+      </svg>
+    </button>
+    <div class="brand-lockup">
+      <div class="brand-emblem">◈</div>
+      <div class="brand-titles">
+        <span class="brand-name">LUMI <span class="brand-ver">// OMNI-COCKPIT</span></span>
+        <span class="brand-sub"><span class="live-dot"></span> ETERNAL GALAXY CORE · SINGLE-PANEL OS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Central Mode & Studio Switcher -->
+  <nav class="mode-switcher" aria-label="Workspace Switcher">
+    <button id="btnModeJarvis" class="mode-btn active" title="Unified Single-Panel Holographic Cockpit">
+      <span class="mode-icon">⚡</span> COCKPIT
+    </button>
+    <button id="btnModeChat" class="mode-btn" title="Expand Chat Terminal Focus (Shortcut: M)">
+      <span class="mode-icon">💬</span> TERMINAL
+    </button>
+    <button id="btnModeSwarm" class="mode-btn" title="Open Full Swarm-Dev Code & Test IDE">
+      <span class="mode-icon">🤖</span> SWARM IDE
+    </button>
+    <button id="btnModeVault" class="mode-btn" title="Jump to Neural-Vault Codebase RAG">
+      <span class="mode-icon">📚</span> VAULT RAG
+    </button>
+    <button id="btnModeNexus" class="mode-btn" title="Open Extended LAN Radar, Webhooks & Dynamic Tools">
+      <span class="mode-icon">📡</span> NEXUS LAB
+    </button>
+    <button id="btnModeBrowse" class="mode-btn" title="Open Clean Web Reader & Daily Tech Radar">
+      <span class="mode-icon">🌐</span> WEB RADAR
+    </button>
+    <button id="btnModeTraining" class="mode-btn" title="Open Neural Training Loss Curves & Model Manager">
+      <span class="mode-icon">🧠</span> MODEL LAB
+    </button>
+  </nav>
+
+  <!-- Right Live Telemetry Pills & Quick Controls -->
+  <div class="topbar-controls">
+    <button id="cmdPaletteBtn" class="pill pill-cmd" title="Omni Command Palette (Ctrl+K)">
+      <span class="pill-icon">⌘K</span> <span class="hide-sm">Search</span>
+    </button>
+    <div id="provBadge" class="pill pill-provider on" title="Active AI Provider">
+      <span class="status-dot"></span><span class="pill-text">Local</span>
+    </div>
+    <div id="statModel" class="pill pill-model hide-md" title="Active Neural Model">llama3</div>
+    <div id="statBattery" class="pill pill-battery" title="Workstation Power Telemetry">
+      <span id="statBatteryText">⚡ 100%</span>
+    </div>
+    <div id="statPresence" class="pill pill-presence" title="Biometric Physical Presence Sentry">
+      <span id="statPresenceText">👁️ Sentry</span>
+    </div>
+    <div id="statCluster" class="pill pill-cluster hide-lg" title="Sovereign Multi-Device Mesh">
+      <span id="statClusterText">🌐 Mesh: 1/1</span>
+    </div>
+    <button id="visionTopBtn" class="pill pill-action" title="Snap & Analyze Active Screen with Vision AI">
+      <span class="pill-icon">📸</span> <span class="hide-md">Vision</span>
+    </button>
+    <button id="voiceSettingsBtn" class="pill pill-action" title="Open Neural Voice Studio & ElevenLabs Setup">
+      <span class="pill-icon">🎛️</span> <span class="hide-md">Voices</span>
+    </button>
+    <button id="sfxBtn" class="pill pill-action active" title="Toggle Cybernetic Sound Effects">
+      <span class="pill-icon">🔊</span> SFX
+    </button>
+    <button id="ttsBtn" class="pill pill-action" title="Toggle Auto-Speech on Text Chat Replies">
+      <span class="pill-icon">🔇</span> Voice
+    </button>
+    <button id="themeBtn" class="pill pill-action" title="Switch Theme">
+      <span class="pill-icon">☀</span>
+    </button>
+    <button class="icon-btn" id="contextToggle" title="Toggle Right Arsenal Wing" aria-label="Toggle Right Wing">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><line x1="15" y1="3" x2="15" y2="21"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- =====================================================================
+     UNIFIED SINGLE-PANEL HOLOGRAPHIC COMMAND COCKPIT (#jarvisView)
+     All Core Features Visible & Operable Simultaneously in 3 Columns
+     ===================================================================== -->
+<main id="jarvisView" class="omni-cockpit">
+
+  <!-- ───────────────────────────────────────────────────────────────────
+       LEFT WING (#sidebar): HARDWARE VITALS, BIOMETRICS, FOCUS & MEMORY
+       ─────────────────────────────────────────────────────────────────── -->
+  <aside id="sidebar" class="cockpit-wing wing-left">
+    <div class="wing-mobile-head">
+      <span>⚡ TELEMETRY & SENTRY WING</span>
+      <button id="sidebarClose" class="icon-btn-sm">✕</button>
+    </div>
+
+    <!-- 1. AI Core Sphere + Real-Time Hardware Vitals -->
+    <section class="wing-card glass-panel">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot green"></span> HARDWARE & NEURAL VITALS</span>
+        <span id="orbState" class="badge badge-green">IDLE</span>
+      </div>
+
+      <div class="core-mini-row">
+        <div id="orbBig" class="orb-sphere-wrap idle">
+          <canvas id="orbCanvas" width="76" height="76"></canvas>
+          <div id="orbMini" class="orb-ring-inner idle"></div>
+        </div>
+        <div class="core-mini-metrics">
+          <div class="cm-item"><span>ENGINE</span><b id="jEngine" class="val-cyan">LOCAL</b></div>
+          <div class="cm-item"><span>VOICE</span><b id="jVoiceName" class="val-gold">Madhur (HI)</b></div>
+          <div class="cm-item"><span>AFFECT</span><b id="jVoiceAffect" class="val-green">CALM (0%)</b></div>
+          <div class="cm-item"><span>STT CUDA</span><b class="val-purple">⚡ GPU FP16</b></div>
+        </div>
+      </div>
+
+      <!-- CPU / RAM / DISK / GPU Live Progress Gauges -->
+      <div id="ctxSystem" class="vitals-gauges">
+        <div class="gauge"><b>CPU</b><div class="track"><div class="fill g-ok" style="width:18%"></div></div><span class="num" id="jCpu">18%</span></div>
+        <div class="gauge"><b>RAM</b><div class="track"><div class="fill g-ok" style="width:45%"></div></div><span class="num" id="jRam">45%</span></div>
+      </div>
+
+      <div class="mini-kpi-strip">
+        <div class="mkpi">
+          <span class="mkpi-lbl">POWER CELL</span>
+          <b id="sentryBatVal" class="val-green">100%</b>
+          <small id="sentryBatSub">AC Connected</small>
+        </div>
+        <div class="mkpi">
+          <span class="mkpi-lbl">RAM LOAD</span>
+          <b id="sentryRamVal" class="val-cyan">45%</b>
+          <small id="sentryStatusPill" class="badge badge-green">GUARDIAN ON</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Biometric & Physical Presence Sentry -->
+    <section class="wing-card glass-panel">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot gold"></span> BIOMETRIC SENTRY GUARD</span>
+        <span id="bioStateBadge" class="badge badge-green">MASTER</span>
+      </div>
+      <div class="bio-compact-grid">
+        <div class="bio-cell">
+          <span>PRESENCE</span>
+          <b id="bioStateVal" class="val-green">PRESENT_MASTER</b>
+          <small id="bioFacesSub">1 Face Detected</small>
+        </div>
+        <div class="bio-cell">
+          <span>PRIVACY SHIELD</span>
+          <b id="bioShieldVal">INACTIVE</b>
+          <small id="bioAwaySub">Away: 0s</small>
+        </div>
+        <div class="bio-cell">
+          <span>SFACE PROFILE</span>
+          <b id="bioProfileVal" class="val-cyan">ENROLLED</b>
+        </div>
+        <div class="bio-cell">
+          <span>AUTO-LOCK</span>
+          <b id="bioAutoLockVal" class="val-gold">ARMED (60s)</b>
+        </div>
+      </div>
+      <div class="tactical-btn-grid">
+        <button id="bioToggleShieldBtn" class="tac-btn" title="Minimize sensitive windows immediately">🛡️ Shield</button>
+        <button id="bioEnrollBtn" class="tac-btn" title="Enroll face profile via webcam">📷 Enroll</button>
+        <button id="bioLockNowBtn" class="tac-btn danger" title="Lock Windows Workstation Now">🔒 Lock OS</button>
+        <button id="bioAutoLockToggleBtn" class="tac-btn" title="Toggle 60s Away Auto-Lock">⏱️ Auto-Lock</button>
+      </div>
+    </section>
+
+    <!-- 3. Workstation Focus Presets & Sovereign Mesh -->
+    <section class="wing-card glass-panel">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot purple"></span> FOCUS & SOVEREIGN MESH</span>
+        <span id="nexusActivePresetBadge" class="badge badge-purple">PRESET: DEFAULT</span>
+      </div>
+      <div class="preset-grid-compact">
+        <button class="preset-btn" data-preset="code_sprint" title="Audio 25%, DND On, Deep Engineering">⚡ Code Sprint</button>
+        <button class="preset-btn" data-preset="cinema" title="Audio 60%, Media Immersion">🎬 Cinema</button>
+        <button class="preset-btn" data-preset="chill" title="Audio 40%, Calm Ambient">☕ Chill Vibe</button>
+        <button class="preset-btn" data-preset="presentation" title="Audio Muted, Zero Distractions">🔇 Present</button>
+      </div>
+      <div class="mesh-mini-bar">
+        <div>
+          <span class="mesh-lbl" id="nexusHostBadge">HOST: LOCALHOST</span>
+          <b id="clusterStatusVal" class="val-green">1 NODE ONLINE</b>
+          <small id="clusterNodesOnlineSub" class="hide">1 of 1 Connected</small>
+          <small>Primary GPU: <span id="clusterGpuNodeVal" class="val-gold">RTX 5060</span> · <span id="clusterSyncVal">SYNCED</span></small>
+        </div>
+        <div class="mesh-mini-actions">
+          <button id="clusterSyncStateBtn" class="tac-btn-xs" title="Sync Session State Across Mesh">🔄 Sync</button>
+          <button id="clusterDispatchDemoBtn" class="tac-btn-xs" title="Benchmark RTX GPU Offload">⚡ GPU Test</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Active Workspace Projects & Long-Term Memory Vault -->
+    <section class="wing-card glass-panel flex-grow-card">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot green"></span> PROJECTS & MEMORY VAULT</span>
+        <button id="addFactQuickBtn" class="tac-btn-xs" title="Store a permanent user fact">+ Fact</button>
+      </div>
+
+      <div class="sub-label">📂 REGISTERED PROJECTS</div>
+      <div id="sideProjects" class="compact-list">
+        <div class="soon">Loading projects…</div>
+      </div>
+
+      <div class="sub-label" style="margin-top:8px;">🧠 LONG-TERM FACTS</div>
+      <div id="sideMemory" class="compact-list">
+        <div class="soon">Loading facts…</div>
+      </div>
+
+      <div class="sub-label" style="margin-top:8px;">📊 SESSION TELEMETRY</div>
+      <div id="ctxMemory" class="compact-list"></div>
+    </section>
+
+    <!-- Left Wing Footer Quick Overlays -->
+    <div class="wing-footer-actions">
+      <button id="sideStatsCard" class="wf-btn" title="Open 7-Day Performance Analytics">📊 Analytics</button>
+      <button id="sideValuesCard" class="wf-btn" title="Inspect Ethical & Operating Rules">⚖ Rules</button>
+      <button id="openAdminBtn" class="wf-btn" title="Open Security Admin Portal">🛡️ Admin</button>
+    </div>
+  </aside>
+
+  <!-- ───────────────────────────────────────────────────────────────────
+       CENTER STAGE: 3D HOLOGRAPHIC ORB + INTEGRATED NEURAL CHAT + COMPOSER
+       ─────────────────────────────────────────────────────────────────── -->
+  <section class="cockpit-center" id="chatShell">
+
+    <!-- UPPER DECK: Interactive 3D Arc Reactor + Voice Subtitle & Pipeline HUD -->
+    <div class="hero-reactor-deck glass-panel" id="heroReactorDeck">
+      <div class="hud-corner top-left"></div>
+      <div class="hud-corner top-right"></div>
+      <div class="hud-corner bottom-left"></div>
+      <div class="hud-corner bottom-right"></div>
+
+      <!-- Left: 3D Interactive Arc Reactor Orb -->
+      <div class="hero-orb-zone">
+        <div id="arcReactor" class="arc-reactor idle" role="button" tabindex="0" title="Click or Press Spacebar to Speak with LUMI (Barge-in ready)">
+          <svg class="reactor-svg" viewBox="0 0 400 400" aria-hidden="true">
+            <defs>
+              <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00ff9d" stop-opacity="0.95"/>
+                <stop offset="50%" stop-color="#fbbf24" stop-opacity="0.85"/>
+                <stop offset="100%" stop-color="#a855f7" stop-opacity="0.95"/>
+              </linearGradient>
+            </defs>
+            <circle cx="200" cy="200" r="190" fill="none" stroke="url(#cyberGrad)" stroke-width="1.2" stroke-dasharray="10 6 2 6" opacity="0.55"/>
+            <circle cx="200" cy="200" r="168" fill="none" stroke="#00ff9d" stroke-width="1.5" stroke-dasharray="45 18 10 18" opacity="0.45"/>
+            <circle cx="200" cy="200" r="144" fill="none" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="6 14" opacity="0.5"/>
+            <polygon points="200,26 350,113 350,287 200,374 50,287 50,113" fill="none" stroke="#a855f7" stroke-width="1" stroke-dasharray="24 12" opacity="0.35"/>
+          </svg>
+
+          <div class="reactor-ring ring-1"></div>
+          <div class="reactor-ring ring-2"></div>
+          <div class="reactor-ring ring-3"></div>
+          <div class="reactor-ring ring-4"></div>
+
+          <!-- Audio Frequency & Quantum Particle Canvas -->
+          <canvas id="jarvisCanvas" width="420" height="420"></canvas>
+
+          <!-- Center Singularity Core -->
+          <div class="reactor-core-center">
+            <div class="core-emblem">◈</div>
+            <div id="jarvisStateLabel" class="reactor-state-label">LUMI</div>
+            <div id="jarvisSubLabel" class="reactor-sub-label">TAP OR SPACE TO SPEAK</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Voice Status, Spectrum, Live Subtitles & Controls -->
+      <div class="hero-hud-column">
+        <div class="hero-hud-top">
+          <div class="hero-status-group">
+            <div id="jarvisModePill" class="jarvis-mode-pill">
+              <span class="pulse-dot"></span>
+              <span>HOLOGRAPHIC VOICE CORE · QUIET STANDBY</span>
+            </div>
+            <h2 id="jarvisStatusTitle" class="jarvis-status-title">READY FOR VOICE OR TEXT DIRECTIVE</h2>
+          </div>
+
+          <!-- 32-Bar Audio Frequency Spectrum -->
+          <div id="jarvisSpectrumBar" class="jarvis-spectrum-bar" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <!-- Live Voice Directive & Response Box -->
+        <div id="jarvisCaptionBox" class="jarvis-caption-box">
+          <div class="jcap-row user-row">
+            <span class="jcap-tag user-tag">🎙️ YOU</span>
+            <p id="jUserText" class="jarvis-user-text">"Tap the 3D Arc Reactor orb or press Spacebar anytime to speak..."</p>
+          </div>
+          <div class="jcap-row bot-row">
+            <span class="jcap-tag bot-tag">◈ LUMI</span>
+            <p id="jBotText" class="jarvis-bot-text">Namaste Sir! Main bilkul shaant standby mode par hoon. Jab bhi aap bolein ya niche box mein likhein, main turant jawab dunga.</p>
+          </div>
+        </div>
+
+        <!-- Live Cognitive Pipeline HUD (Visible during voice processing) -->
+        <div id="jarvisProcessingHUD" class="jarvis-processing-hud hidden">
+          <div class="hud-directive-bar">
+            <span class="hud-dir-label">DIRECTIVE:</span>
+            <span id="hudDirective" class="hud-dir-text">"Analyzing..."</span>
+          </div>
+          <div class="pipeline-steps">
+            <div id="pipeSTT" class="pipe-step completed">
+              <span class="pipe-dot"></span>
+              <span class="pipe-name">1. CUDA WHISPER STT</span>
+              <span class="pipe-state">LOCKED</span>
+            </div>
+            <div id="pipeLLM" class="pipe-step active">
+              <span class="pipe-dot"></span>
+              <span class="pipe-name">2. NEURAL REASONING</span>
+              <span class="pipe-state">COMPUTING</span>
+            </div>
+            <div id="pipeTTS" class="pipe-step">
+              <span class="pipe-dot"></span>
+              <span class="pipe-name">3. VOCAL SYNTHESIS</span>
+              <span class="pipe-state">STANDBY</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Tool Execution Alert -->
+        <div id="jarvisToolToast" class="jarvis-tool-toast hidden">
+          <span class="jtt-icon">⚙</span>
+          <div class="jtt-info">
+            <b id="jToolName">tool_name</b>
+            <span id="jToolDetail">Executing autonomous action...</span>
+          </div>
+        </div>
+
+        <!-- Tactical Voice Control Buttons -->
+        <div class="jarvis-controls">
+          <button id="jarvisMainMicBtn" class="j-btn j-btn-primary" title="Start or Stop Voice Input (Shortcut: Spacebar)">
+            <span class="btn-icon">🎙️</span> <span>SPEAK NOW <kbd>SPACE</kbd></span>
+          </button>
+          <button id="jarvisAutoListenBtn" class="j-btn" title="Toggle Continuous Hands-Free Auto-Listen Loop">
+            <span class="btn-icon">♾️</span> <span>HANDS-FREE: <b id="hfStatus">OFF</b></span>
+          </button>
+          <button id="jarvisStopBtn" class="j-btn j-btn-danger" title="Immediately Silence Speech & Reset to Quiet Standby (Shortcut: Esc)">
+            <span class="btn-icon">⏹</span> <span>QUIET / MUTE</span>
+          </button>
+          <button id="jarvisSnapScreenBtn" class="j-btn" title="Capture Screen & Explain with Vision AI">
+            <span class="btn-icon">📸</span> <span>VISION SNAP</span>
+          </button>
+          <button id="jarvisToChatBtn" class="j-btn" title="Toggle Compact Reactor / Full Chat Height">
+            <span class="btn-icon">⬍</span> <span id="expandChatLbl">EXPAND STREAM</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MIDDLE STREAM: Integrated Neural Chat & Output Box (#chat) -->
+    <div id="chat" class="cockpit-chat-stream" role="log" aria-live="polite">
+      <!-- Compact Welcome Deck inside the stream -->
+      <div id="welcome" class="welcome-compact">
+        <div class="wc-banner-top">
+          <div>
+            <span class="wc-eyebrow">⚡ UNIFIED NEURAL TERMINAL & VOICE STREAM</span>
+            <h3>All Voice Replies, Code Blocks, Tool Traces & Approvals Render Live In This Box</h3>
+          </div>
+          <div class="wc-meta-pills">
+            <span class="badge badge-green">ENGINE: <b id="wEngine">NVIDIA / LOCAL</b></span>
+            <span class="badge badge-gold">VOICE: <b id="wVoice">Madhur (Hinglish)</b></span>
+          </div>
+        </div>
+        <div class="starter-grid">
+          <button class="starter-card" data-msg="/briefing">
+            <span class="sc-icon">🌅</span>
+            <div class="sc-text"><b>Morning Briefing</b><span>System health, weather & tasks</span></div>
+          </button>
+          <button class="starter-card" data-msg="Check my CPU, RAM, and battery health right now">
+            <span class="sc-icon">🛡️</span>
+            <div class="sc-text"><b>System Diagnostics</b><span>Inspect live hardware telemetry</span></div>
+          </button>
+          <button class="starter-card" data-msg="Write a fast Python async port scanner with clean CLI output">
+            <span class="sc-icon">💻</span>
+            <div class="sc-text"><b>Code Generation</b><span>Synthesize & verify Python code</span></div>
+          </button>
+          <button class="starter-card" data-msg="/sentry">
+            <span class="sc-icon">👁️</span>
+            <div class="sc-text"><b>Ambie-Sentry Guard</b><span>Proactive security & power report</span></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM DOCK: Quick Command Chips + Multi-Modal Composer -->
+    <div class="cockpit-composer-dock glass-panel">
+      <div id="deckScroll" class="deck-scroll">
+        <button class="deck-chip" data-cmd="/briefing">🌅 /briefing</button>
+        <button class="deck-chip" data-cmd="/sentry">🛡️ /sentry</button>
+        <button class="deck-chip" data-cmd="/deepthink">🧠 /deepthink (MCTS)</button>
+        <button class="deck-chip" data-cmd="/tools">🔧 /tools</button>
+        <button class="deck-chip" data-cmd="/facts">🧠 /facts</button>
+        <button class="deck-chip" data-cmd="/reminders">⏰ /reminders</button>
+        <button class="deck-chip" data-cmd="/stats">📊 /stats</button>
+        <button class="deck-chip" data-cmd="/clear">🧹 /clear</button>
+      </div>
+
+      <div class="composer-row">
+        <button id="micBtn" class="comp-icon-btn" title="Record Voice Clip via CUDA Whisper STT">🎙️</button>
+        <div id="micRec" class="mic-rec-pill hidden">
+          <span class="rec-dot"></span> <span id="micTime">0:00</span>
+        </div>
+        <button id="snapScreenChatBtn" class="comp-icon-btn" title="Snap Screen & Ask LUMI Vision AI">📸</button>
+        <textarea id="input" rows="1" placeholder="Type any command, code request, or /slash directive — or press Spacebar to speak..."></textarea>
+        <button id="send" class="comp-send-btn" title="Execute Directive (Enter)">
+          <span>EXECUTE</span> <span class="send-arrow">➤</span>
+        </button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ───────────────────────────────────────────────────────────────────
+       RIGHT WING (#context): TOOLS ARSENAL, SWARM, VAULT RAG & FINTECH
+       ─────────────────────────────────────────────────────────────────── -->
+  <aside id="context" class="cockpit-wing wing-right">
+    <div class="wing-mobile-head">
+      <span>🛠️ ARSENAL, SWARM & VAULT WING</span>
+      <button id="contextClose" class="icon-btn-sm">✕</button>
+    </div>
+
+    <!-- 1. Tactical Tool Arsenal & Instant Executive Directives -->
+    <section class="wing-card glass-panel">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot green"></span> TACTICAL TOOL ARSENAL</span>
+        <span id="toolCountBadge" class="badge badge-cyan">30+</span>
+      </div>
+      <div class="tactical-btn-grid" style="margin-bottom:8px;">
+        <button class="tac-btn" onclick="triggerDeepThinking()" title="Spawn 3-Branch Monte Carlo Reasoning Tree">🧠 Deep MCTS</button>
+        <button class="tac-btn" onclick="snapAndAnalyzeScreen()" title="Capture & Analyze Screen">📸 Screen AI</button>
+        <button class="tac-btn" onclick="promptSetVoiceAffect()" title="Configure Emotional Voice Cadence">🎭 Voice Affect</button>
+        <button class="tac-btn" onclick="sendDirectMessage('/briefing')" title="Execute Full System Briefing">🌅 Briefing</button>
+      </div>
+      <div id="sideTools" class="compact-list tools-scroll">
+        <div class="soon">Loading registered tools…</div>
+      </div>
+    </section>
+
+    <!-- 2. Autonomous Swarm-Dev 4-Agent Launcher -->
+    <section class="wing-card glass-panel">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot gold"></span> SWARM-DEV 4-AGENT CLUSTER</span>
+        <span id="swarmStatusBadge" class="badge badge-green">READY</span>
+      </div>
+      <div class="swarm-mini-form">
+        <input id="swarmGoalInput" type="text" class="cyber-input" placeholder="Project goal (e.g. FastAPI JWT Auth microservice)...">
+        <div class="swarm-mini-row">
+          <input id="swarmNameInput" type="text" class="cyber-input" placeholder="Folder name (optional)">
+          <button id="swarmLaunchBtn" class="cyber-btn-gold" title="Deploy Architect, Coder, Tester & Debugger Agents">🚀 BUILD</button>
+        </div>
+        <div class="swarm-template-chips">
+          <button class="st-chip" data-name="cli_todo" data-goal="Build a Python CLI task manager with JSON storage and unit tests">CLI App</button>
+          <button class="st-chip" data-name="rest_api" data-goal="Create a modular Python REST API service with health check and unit tests">REST API</button>
+          <button class="st-chip" data-name="crypto_util" data-goal="Build a file hashing and SHA-256 verification utility with pytest suite">Crypto Tool</button>
+        </div>
+      </div>
+      <div class="swarm-agents-mini">
+        <div id="agentArchitect" class="ag-pill">📐 Architect</div>
+        <div id="agentCoder" class="ag-pill">💻 Coder</div>
+        <div id="agentTester" class="ag-pill">🧪 Tester</div>
+        <div id="agentDebugger" class="ag-pill">🩹 Debugger</div>
+      </div>
+      <button class="wf-btn full-width-btn" style="margin-top:6px;" onclick="openStudioDrawer('swarmView')">
+        📂 Open Full Swarm Code & Terminal IDE
+      </button>
+    </section>
+
+    <!-- 3. Neural-Vault Semantic Codebase RAG -->
+    <section class="wing-card glass-panel" id="vaultWingCard">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot purple"></span> NEURAL-VAULT CODEBASE RAG</span>
+        <button id="vaultReindexBtn" class="tac-btn-xs" title="Re-Index Workspace Codebase">⚡ Re-Index</button>
+      </div>
+      <div class="vault-stats-strip">
+        <span>📄 <b id="vaultDocCount">0</b> Docs</span>
+        <span>🧩 <b id="vaultChunkCount">0</b> Chunks</span>
+        <span>💾 <b id="vaultSizeKb">0</b> KB</span>
+      </div>
+      <div class="vault-search-row">
+        <input id="vaultSearchInput" type="text" class="cyber-input" placeholder="Semantic search across repo files...">
+        <button id="vaultSearchBtn" class="cyber-btn-cyan">🔍</button>
+      </div>
+      <div class="vault-filter-row">
+        <button class="vf-chip active" data-ext="">All</button>
+        <button class="vf-chip" data-ext=".py">.py</button>
+        <button class="vf-chip" data-ext=".js">.js</button>
+        <button class="vf-chip" data-ext=".md">.md</button>
+      </div>
+      <div id="vaultResultsDeck" class="vault-results-mini">
+        <div class="empty-state">
+          <span>Type above for instant semantic code & line recall.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Fintech Oracle & Live Security Audit Log -->
+    <section class="wing-card glass-panel flex-grow-card">
+      <div class="wc-head">
+        <span class="wc-title"><span class="wc-dot green"></span> FINTECH & AUDIT TELEMETRY</span>
+        <span id="fintechBurnRateBadge" class="badge badge-gold">BURN: ₹0/mo</span>
+      </div>
+      <div class="fintech-mini-grid">
+        <div class="fm-cell"><span>OUTFLOW</span><b id="fintechExpenseVal" class="val-amber">₹0</b></div>
+        <div class="fm-cell"><span>INFLOW</span><b id="fintechInflowVal" class="val-cyan">₹0</b></div>
+        <div class="fm-cell"><span>NET SAVINGS</span><b id="fintechNetVal" class="val-green">₹0</b></div>
+      </div>
+      <div class="hide" id="fintechSavingsRateSub"></div>
+      <div class="hide" id="fintechBurnVal"></div>
+      <div class="hide" id="fintechSubsCountSub"></div>
+      <div class="tactical-btn-grid" style="margin-bottom:8px;">
+        <button id="fintechAddTxnBtn" class="tac-btn-xs">+ Expense</button>
+        <button id="fintechTrackSubBtn" class="tac-btn-xs">+ Sub</button>
+        <button id="fintechGenInvoiceBtn" class="tac-btn-xs">📄 Invoice</button>
+      </div>
+
+      <div class="sub-label">🛡️ LIVE TOOL & SECURITY AUDIT</div>
+      <div id="ctxActivity" class="compact-list">
+        <div class="soon">No recent tool activity</div>
+      </div>
+
+      <div class="sub-label" style="margin-top:6px;">📈 TODAY'S THROUGHPUT</div>
+      <div id="sideStats" class="compact-list"></div>
+    </section>
+  </aside>
+
+</main>
+
+<!-- =====================================================================
+     SECONDARY DEEP-DIVE STUDIO DRAWERS (OVERLAYS ON TOP OF COCKPIT)
+     ===================================================================== -->
+
+<!-- 1. SWARM-DEV FULL CODE & TERMINAL IDE DRAWER (#swarmView) -->
+<section id="swarmView" class="studio-drawer hidden">
+  <div class="studio-drawer-card glass-panel">
+    <div class="studio-head">
+      <div>
+        <span class="studio-eyebrow">🤖 AUTONOMOUS SOFTWARE ENGINEERING CLUSTER</span>
+        <h2>SWARM-DEV MULTI-FILE CODE & TEST VERIFICATION IDE</h2>
+      </div>
+      <div class="studio-head-actions">
+        <span id="swarmTestBadge" class="badge badge-green">TESTS READY</span>
+        <button class="cyber-btn-return" onclick="setAppMode('jarvis')">← BACK TO UNIFIED COCKPIT</button>
+      </div>
+    </div>
+    <div class="swarm-ide-grid">
+      <div class="swarm-files-pane glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">📂 <span id="swarmProjDir">workspace/</span></span>
+          <span id="swarmFileCount" class="badge badge-cyan">0</span>
+        </div>
+        <div id="swarmFileList" class="swarm-file-list">
+          <div class="empty-state">Launch a Swarm build from the Right Wing to inspect generated files here.</div>
+        </div>
+      </div>
+      <div class="swarm-code-pane glass-panel">
+        <div class="wc-head">
+          <span id="swarmActiveFileName" class="wc-title">📄 main.py</span>
+          <div style="display:flex;gap:8px;">
+            <button id="copySwarmCodeBtn" class="tac-btn-xs">📋 Copy Code</button>
+            <button id="runSwarmProjectBtn" class="tac-btn-xs">▶ Run in Sandbox</button>
+          </div>
+        </div>
+        <pre class="swarm-code-pre"><code id="swarmCodePreview"># Generated code will appear here...</code></pre>
+      </div>
+      <div class="swarm-term-pane glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">🖥 PYTEST & SELF-HEALING VERIFICATION LOG</span>
+        </div>
+        <pre id="swarmTerminalLog" class="swarm-term-pre">[SWARM-DEV] Standing by for project specification...</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. NEXUS-IOT, LAN RADAR & KERNEL SYNTHESIZER DRAWER (#nexusView) -->
+<section id="nexusView" class="studio-drawer hidden">
+  <div class="studio-drawer-card glass-panel">
+    <div class="studio-head">
+      <div>
+        <span class="studio-eyebrow">📡 SOVEREIGN HARDWARE, LAN RADAR & DYNAMIC TOOL SYNTHESIS</span>
+        <h2>NEXUS-IOT & KERNEL SYNTHESIZER LAB</h2>
+      </div>
+      <button class="cyber-btn-return" onclick="setAppMode('jarvis')">← BACK TO UNIFIED COCKPIT</button>
+    </div>
+    <div class="studio-three-col">
+      <!-- LAN Subnet Radar -->
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">📡 LOCAL SUBNET RADAR</span>
+          <button id="scanLanBtn" class="tac-btn-xs"><span class="btn-icon">⚡</span> SCAN SUBNET</button>
+        </div>
+        <div id="lanDevicesDeck" class="compact-list">
+          <div class="empty-state">Click Scan Subnet to probe active LAN nodes.</div>
+        </div>
+        <div class="wc-head" style="margin-top:14px;">
+          <span class="wc-title">🌐 SOVEREIGN MESH NODES</span>
+          <button id="clusterAddNodeBtn" class="tac-btn-xs">+ Enroll Peer</button>
+        </div>
+        <div id="clusterNodesList" class="compact-list"></div>
+      </div>
+
+      <!-- IoT Webhook Dispatcher -->
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">🔗 IOT / HOME ASSISTANT WEBHOOK</span>
+          <span id="webhookStatusBadge" class="badge badge-dim">STANDBY</span>
+        </div>
+        <div class="swarm-mini-form">
+          <input id="webhookUrlInput" type="text" class="cyber-input" placeholder="https://homeassistant.local:8123/api/webhook/...">
+          <textarea id="webhookPayloadInput" rows="4" class="cyber-input" placeholder='{"entity_id": "light.studio", "state": "on"}'></textarea>
+          <button id="sendWebhookBtn" class="cyber-btn-gold">⚡ DISPATCH WEBHOOK</button>
+        </div>
+      </div>
+
+      <!-- Kernel-Synthesizer Dynamic Tools -->
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">⚡ SELF-COMPILED PYTHON TOOLS</span>
+          <button id="refreshSynthBtn" class="tac-btn-xs">🔄 Refresh</button>
+        </div>
+        <div id="synthesizedToolsList" class="compact-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. WEB-OPERATOR CLEAN READER & TECH RADAR DRAWER (#browseView) -->
+<section id="browseView" class="studio-drawer hidden">
+  <div class="studio-drawer-card glass-panel">
+    <div class="studio-head">
+      <div>
+        <span class="studio-eyebrow">🌐 AUTONOMOUS WEB INTELLIGENCE & TECH BRIEFING</span>
+        <h2>WEB-OPERATOR READER & LIVE DEVELOPER RADAR</h2>
+      </div>
+      <button class="cyber-btn-return" onclick="setAppMode('jarvis')">← BACK TO UNIFIED COCKPIT</button>
+    </div>
+    <div class="browse-grid">
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span id="readerTitle" class="wc-title">📄 CLEAN AI READER</span>
+          <span id="readerStatus" class="badge badge-dim">IDLE</span>
+        </div>
+        <div class="vault-search-row" style="margin-bottom:8px;">
+          <input id="browserUrlInput" type="text" class="cyber-input" placeholder="https://news.ycombinator.com or any documentation URL...">
+          <button id="browseGoBtn" class="cyber-btn-cyan">FETCH & SUMMARIZE</button>
+        </div>
+        <div class="vault-filter-row" style="margin-bottom:10px;">
+          <button class="qs-chip vf-chip" data-url="https://news.ycombinator.com">Hacker News</button>
+          <button class="qs-chip vf-chip" data-url="https://lobste.rs">Lobsters</button>
+          <button class="qs-chip vf-chip" data-url="https://python.org">Python.org</button>
+        </div>
+        <div id="readerBody" class="reader-body">
+          <div class="empty-state">Enter any URL above to strip ads/trackers and synthesize a clean technical summary.</div>
+        </div>
+      </div>
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">🔥 DAILY TECH RADAR</span>
+          <button id="refreshTechBtn" class="tac-btn-xs">🔄 Refresh</button>
+        </div>
+        <div id="techRadarList" class="compact-list">
+          <div class="empty-state">Loading live developer radar…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. NEURAL TRAINING & MODEL LAB DRAWER (#trainingView) -->
+<section id="trainingView" class="studio-drawer hidden">
+  <div class="studio-drawer-card glass-panel">
+    <div class="studio-head">
+      <div>
+        <span class="studio-eyebrow">🧠 CONTINUOUS LO-RA FINE-TUNING & LOCAL WEIGHTS</span>
+        <h2>NEURAL MODEL LAB & LIVE LOSS TELEMETRY</h2>
+      </div>
+      <div class="studio-head-actions">
+        <span id="trainingStatusBadge" class="badge badge-dim">IDLE</span>
+        <button id="refreshTrainingBtn" class="tac-btn-xs">🔄 Refresh</button>
+        <button class="cyber-btn-return" onclick="setAppMode('jarvis')">← BACK TO UNIFIED COCKPIT</button>
+      </div>
+    </div>
+    <div class="studio-three-col">
+      <div class="wing-card glass-panel">
+        <div class="wc-head">
+          <span class="wc-title">📊 FINE-TUNING PROGRESS</span>
+          <span id="trainStatus" class="badge badge-cyan">IDLE</span>
+        </div>
+        <div class="fintech-mini-grid" style="margin-bottom:10px;">
+          <div class="fm-cell"><span>SET</span><b><span id="trainSetCurrent">0</span>/<span id="trainSetTotal">0</span></b></div>
+          <div class="fm-cell"><span>PROGRESS</span><b class="val-green"><span id="trainPct">0.0</span>%</b></div>
+          <div class="fm-cell"><span>ETA</span><b id="trainEta" class="val-gold">—</b></div>
+          <div class="fm-cell"><span>TRAIN LOSS</span><b id="trainTrainLoss" class="val-cyan">—</b></div>
+          <div class="fm-cell"><span>EVAL LOSS</span><b id="trainEvalLoss" class="val-purple">—</b></div>
+        </div>
+        <div class="track" style="height:8px;margin-bottom:12px;"><div id="trainFill" class="fill g-ok" style="width:0%"></div></div>
+        <div style="height:180px;position:relative;">
+          <canvas id="lossCurveCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="wing-card glass-panel">
+        <div class="wc-head"><span class="wc-title">📜 LIVE TRAINING STREAM</span></div>
+        <div id="trainingLogDeck" class="swarm-term-pre" style="height:290px;overflow-y:auto;"></div>
+      </div>
+
+      <div class="wing-card glass-panel">
+        <div class="wc-head"><span class="wc-title">📦 LOCAL OLLAMA MODELS</span></div>
+        <div class="vault-search-row" style="margin-bottom:10px;">
+          <input id="pullModelInput" type="text" class="cyber-input" placeholder="Pull model (e.g. llama3.2:3b)...">
+          <button id="pullModelBtn" class="cyber-btn-gold">PULL</button>
+        </div>
+        <div id="modelList" class="compact-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     MODALS: OMNI COMMAND PALETTE, VOICE STUDIO, ANALYTICS, RULES, ADMIN
+     ===================================================================== -->
+
+<!-- Omni Command Palette (Ctrl+K) -->
+<div id="commandPalette" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="spotlight-box glass-panel">
+    <div class="spot-search-bar">
+      <span class="spot-icon">⌘</span>
+      <input id="spotlightInput" type="text" placeholder="Type a command, tool, focus preset, or studio view... (Esc to close)">
+    </div>
+    <div id="spotlightResults" class="spot-results"></div>
+  </div>
+</div>
+
+<!-- Neural Voice Studio Modal -->
+<div id="voicePage" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="modal-card glass-panel">
+    <div class="wc-head">
+      <span class="wc-title">🎙️ NEURAL VOICE STUDIO & HINGLISH CADENCE</span>
+      <button id="voiceClose" class="icon-btn-sm">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+      Select LUMI's primary vocal identity. Edge-TTS Neural voices run locally with zero API cost; ElevenLabs voices can be unlocked below.
+    </p>
+    <div id="voiceListGrid" class="voice-grid"></div>
+    <div class="voice-actions-bar" style="margin-top:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;">
+      <button id="testVoiceBtn" class="cyber-btn-gold">▶ Test Voice ("Namaste!")</button>
+      <div style="display:flex;gap:6px;align-items:center;flex:1;max-width:340px;">
+        <input id="elevenKeyInput" type="password" class="cyber-input" placeholder="ElevenLabs API Key (optional)...">
+        <button id="saveElevenKeyBtn" class="cyber-btn-cyan">Save</button>
+        <span id="elevenKeyBadge" class="badge badge-dim">Not Set</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7-Day Performance Analytics Modal -->
+<div id="statsPage" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="modal-card glass-panel">
+    <div class="wc-head">
+      <span class="wc-title">📊 7-DAY COGNITIVE & TOOL TELEMETRY</span>
+      <button id="statsClose" class="icon-btn-sm">✕</button>
+    </div>
+    <div id="statsKpis" class="kpi-grid" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- Operating Values & Safety Charter Modal -->
+<div id="valuesPage" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="modal-card glass-panel">
+    <div class="wc-head">
+      <span class="wc-title">⚖ SOVEREIGN OPERATING VALUES & SAFETY GATE</span>
+      <button id="valuesClose" class="icon-btn-sm">✕</button>
+    </div>
+    <div style="font-size:13px;line-height:1.7;color:var(--text-main);margin-top:10px;">
+      <p><b>1. Local-First Sovereignty:</b> Your telemetry, biometrics, codebase RAG, and memory remain strictly on your machine.</p>
+      <p><b>2. Explicit Destructive Gate:</b> File mutations, shell executions, and system locks pass through the Safety Gate (`auto` / `ask` / `block`).</p>
+      <p><b>3. Calm Discipline:</b> LUMI remains quiet until addressed via the Arc Reactor orb, Spacebar, or text terminal, and always responds when summoned.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Draggable Cyber-Bot Companion ("Chotu LUMI") -->
+<div id="lumiBotCompanion" class="lumi-bot-companion idle" role="button" tabindex="0" title="Chotu LUMI (Drag me anywhere! Click to talk, right-click for quick actions)">
+  <div class="bot-speech-bubble" id="botSpeechBubble">
+    <span id="botBubbleText">Namaste Boss! Main ready hoon.</span>
+    <span class="bubble-arrow"></span>
+  </div>
+  <div class="bot-aura"></div>
+  <div class="bot-body-wrap">
+    <!-- Antenna with glowing pulse tip -->
+    <div class="bot-antenna">
+      <div class="antenna-stick"></div>
+      <div class="antenna-tip"></div>
+    </div>
+    <!-- Head & Visor -->
+    <div class="bot-head">
+      <div class="bot-ear ear-left"></div>
+      <div class="bot-ear ear-right"></div>
+      <div class="bot-face-screen">
+        <div class="bot-eyes" id="botEyes">
+          <div class="eye eye-left"><span class="pupil"></span></div>
+          <div class="eye eye-right"><span class="pupil"></span></div>
+        </div>
+        <div class="bot-mouth" id="botMouth">
+          <div class="mouth-bar"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Floating Anti-Gravity Torso & Jet Thrusters -->
+    <div class="bot-torso">
+      <div class="bot-core-reactor">◈</div>
+      <div class="bot-thruster thruster-left"></div>
+      <div class="bot-thruster thruster-right"></div>
+      <div class="thruster-spark"></div>
+    </div>
+  </div>
+
+  <!-- Mini Quick Radial / HUD Menu -->
+  <div id="botQuickMenu" class="bot-quick-menu hidden">
+    <button class="bq-btn" id="bqListenBtn" title="Speak with LUMI">🎙️ Speak</button>
+    <button class="bq-btn" id="bqVisionBtn" title="Vision Screen Snap">📸 Vision</button>
+    <button class="bq-btn" id="bqBriefingBtn" title="Morning Briefing">🌅 Briefing</button>
+    <button class="bq-btn" id="bqShieldBtn" title="Privacy Shield">🛡️ Shield</button>
+    <button class="bq-btn danger" id="bqHideBtn" title="Hide Mascot">✕ Hide</button>
+  </div>
+</div>
+
+<script src="/static/app.js?v=12.0"></script>
+</body>
+</html>

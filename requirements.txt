@@ -1,0 +1,17 @@
+# LUMI runtime deps (versions = tested on Python 3.12)
+ollama>=0.6
+openai>=2.0
+pyyaml>=6.0
+fastapi>=0.104
+uvicorn[standard]>=0.24
+python-multipart>=0.0.9      # /api/transcribe (UploadFile) ke liye zaroori
+requests>=2.31               # telegram bot
+psutil>=5.9                  # /api/system widget
+faster-whisper>=1.0          # voice IN (local STT)
+edge-tts>=6.1                # voice OUT (TTS)
+nvidia-ml-py>=12             # optional: GPU widget
+APScheduler>=3.10            # core/scheduler.py (background jobs)
+mcp<2                        # tools/mcp_client.py — v2 API breaking hai, 1.x pin rakho
+# sqlite3 = stdlib
+
+# dev / tests:  pip install -r requirements-dev.txt
