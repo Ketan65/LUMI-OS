@@ -722,10 +722,15 @@ def register_idle_harvester_tools(registry: ToolRegistry) -> None:
         res = harvester.harvest_next_available()
         if not res.get("success"):
             return res.get("message", "No new skill available.")
+        if res.get("status") == "internet_trend_discovered":
+            return (
+                f"⚡ [LIVE INTERNET RESEARCH ACTIVE]: {res.get('message')}\n"
+                f"Live Web Trends: {', '.join(res.get('live_trends', []))}"
+            )
         return (
-            f"⚡ [AUTONOMOUS SKILL HARVESTED]: Mastered '{res['name']}' ({res['category']})\n"
-            f"Market Value: {res['market_value']}\n"
-            f"Capability: {res['description']}\n"
+            f"⚡ [AUTONOMOUS SKILL HARVESTED]: Mastered '{res.get('name')}' ({res.get('category', 'Technical')})\n"
+            f"Market Value: {res.get('market_value', 'High-Demand')}\n"
+            f"Capability: {res.get('description', '')}\n"
             f"Status: Hot-loaded into ToolRegistry & registered in data/skills/."
         )
 
