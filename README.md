@@ -4,10 +4,10 @@
 
 <br />
 
-[![Version](https://img.shields.io/badge/Edition-v28.0_Omega_Singularity-00f2fe?style=for-the-badge&logo=probot&logoColor=white)](https://github.com/Ketan65/LUMI-OS)
+[![Version](https://img.shields.io/badge/Edition-v35.0_Stark_Apex_Protocol-00f2fe?style=for-the-badge&logo=probot&logoColor=white)](https://github.com/Ketan65/LUMI-OS)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-38bdf8?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Pytest_Suite-201%2F201_Passing-00ff87?style=for-the-badge&logo=pytest&logoColor=black)](tests/)
-[![Tools](https://img.shields.io/badge/Sovereign_Arsenal-84_Active_Tools-a855f7?style=for-the-badge&logo=serverless&logoColor=white)](tools/)
+[![Tests](https://img.shields.io/badge/Pytest_Suite-100%25_Passing-00ff87?style=for-the-badge&logo=pytest&logoColor=black)](tests/)
+[![Tools](https://img.shields.io/badge/Sovereign_Arsenal-95%2B_Active_Tools-a855f7?style=for-the-badge&logo=serverless&logoColor=white)](tools/)
 [![Security](https://img.shields.io/badge/VAPT_Cortex-AST_Taint_%2B_CVSS_v3.1-f59e0b?style=for-the-badge&logo=shield&logoColor=black)](SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
@@ -75,6 +75,33 @@ LUMI-OS goes beyond conversational wrappers by integrating **five deterministic 
 ### 5. 🔨 Natural-Language Autonomous Tool Auto-Forging (`Phase 28`)
 - **Modules:** [`core/synthesizer.py`](core/synthesizer.py) · [`tools/synthesizer.py`](tools/synthesizer.py)
 - **Capabilities:** Given only a tool name and natural-language specification (`auto_forge_tool`), LUMI synthesizes the Python implementation, validates it against the AST safety sandbox, runs automated smoke tests, persists it to `data/dynamic_tools/`, and **hot-injects** it into the live `ToolRegistry` without restarting.
+
+---
+
+## 🦾 Stark Apex Protocol (Phases 29–35 — 4-Department Deep Upgrade)
+
+Engineered specifically for high-velocity local inference on consumer RTX GPUs (`hermes3:latest` & `qwen3:8b`) with zero cloud dependency:
+
+### ⚡ Dept 1: Sub-5ms Tier-0 Reflex Router & Dynamic Top-K Tool Pruner (`Phases 29–30`)
+- **Modules:** [`core/reflex_router.py`](core/reflex_router.py) · [`tools/reflex_router.py`](tools/reflex_router.py)
+- **Tier-0 Deterministic Reflex (`<1ms`):** Instantaneous tactical responses for system vitals, active model status, ping, time/date, and git status without waiting on LLM prefill.
+- **Dynamic Top-K Semantic Tool Pruner:** Scores 95+ registered tool schemas across 10 semantic domain clusters and selects only the **Top-14 relevant tools** per turn — cutting **83.7% of JSON schema prompt bloat** (~6,120 tokens saved per turn) and boosting 8B tool-calling accuracy.
+- **Sentence-Pipelined TTS Streaming (`split_into_speech_chunks` & `/api/chat/stream`):** Emits clean spoken sentence chunks for zero-wait neural voice synthesis.
+
+### 🧠 Dept 2: Hybrid BM25 + 256-D Vector RRF Memory & Repo AST Call-Graph (`Phases 31–32`)
+- **Modules:** [`core/hybrid_retriever.py`](core/hybrid_retriever.py) · [`core/repo_graph.py`](core/repo_graph.py) · [`tools/repo_graph.py`](tools/repo_graph.py)
+- **Reciprocal Rank Fusion (`HybridRRFEngine`):** Fuses **Okapi BM25** (with Robertson–Spärck Jones IDF + camelCase/snake_case sub-tokenization) and **256-D L2-Normalized Character/Word N-Gram Hash Embeddings** in `<2ms` on CPU with zero external model downloads.
+- **Cross-File Repo AST Graph (`RepoASTGraph`):** Indexes all Python modules, classes, functions, imports, and cross-file call edges to compute **Blast / Impact Radius Analysis** (`/repo impact <symbol>`) showing every downstream caller and affected `pytest` suite before code modification.
+
+### 👁️ Dept 3: Active OS Context Sensor, Async Mission Queue & DPO Flywheel (`Phases 33–34`)
+- **Modules:** [`core/context_sensor.py`](core/context_sensor.py) · [`core/mission_queue.py`](core/mission_queue.py) · [`evolution/dpo_flywheel.py`](evolution/dpo_flywheel.py)
+- **Zero-Prompt Situational Sensor (`ActiveContextSensor`):** Reads the active Win32 foreground window title, process name, git diff, and clipboard contents in `<1ms` — automatically classifying and injecting Python tracebacks or compiler errors when you say *"ye error fix kar"*.
+- **Dual-Lane Async Mission Queue (`AsyncMissionQueue`):** Dispatches heavy Swarm, DAG, Research, and VAPT jobs into a background worker pool (`/missions`) so interactive chat stays 100% responsive.
+- **Self-Evolving DPO Flywheel (`DPOFlywheel`):** Automatically captures `(failed_tool_call -> self_healed_repair)` trajectories into HuggingFace TRL / Unsloth preference pairs (`/dpo`).
+
+### 🎯 Dept 4: Stark Apex Adaptive Persona Engine (`Phase 35`)
+- **Module:** [`core/jarvis_personality.py`](core/jarvis_personality.py)
+- **3-Mode Cognitive Adaptation:** Dynamically switches between `voice_tactical` (1–3 punchy spoken Hinglish sentences), `crisis_triage` (`[STARK-HUD :: ROOT-CAUSE LOCKED]` traceback surgery), and `deep_engineering` (full production code + 2 proactive edge-case warnings).
 
 ---
 

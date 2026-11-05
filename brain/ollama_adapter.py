@@ -191,30 +191,19 @@ def get_dynamic_telemetry() -> str:
 
 
 def filter_tools_for_context(tools: list[dict] | None, messages: list[dict]) -> list[dict] | None:
-    """Filter 70+ tools down to the top 18 relevant tools so local models stay fast and sharp."""
-    if not tools or len(tools) <= 18:
+    """Prune 80+ tools down to top-K (14) domain-relevant schemas via ReflexRouter."""
+    if not tools or len(tools) <= 14:
         return tools
     last_user = ""
     for m in reversed(messages):
         if m.get("role") == "user":
-            last_user = str(m.get("content", "")).lower()
+            last_user = str(m.get("content", ""))
             break
-    core_names = {
-        "list_files", "read_file", "write_file", "edit_file", "grep_search", "search_files",
-        "remember", "recall", "list_facts", "web_search",
-        "run_python", "run_command", "open_app", "system_control", "execute_goal", "code_oracle_audit",
-        "analyze_screen", "sentry_status",
-        "vapt_deep_scan", "vapt_auto_patch", "vapt_surface_audit",
-        "execute_dag_mission", "graph_query_neighborhood", "graph_causal_path",
-        "simulate_and_apply_patch", "auto_forge_tool",
-    }
-    selected = []
-    for t in tools:
-        fn = t.get("function", {})
-        name = fn.get("name", "")
-        if name in core_names or any(w in last_user for w in [name, name.replace("_", " ")]):
-            selected.append(t)
-    return selected[:18]
+    try:
+        from core.reflex_router import get_reflex_router
+        return get_reflex_router().select_relevant_tools(last_user, tools, top_k=14)
+    except Exception:
+        return tools[:14]
 
 
 class OllamaBrain(Brain):

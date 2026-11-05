@@ -219,6 +219,19 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     orchestrator.world_model = register_world_model_tools(
         registry, workspace_root=ws_path, brain=brain
     )
+    # ── Phase 29–35 (v35.0): STARK APEX PROTOCOL (Depts 1, 2, 3, 4) ──────
+    from tools.reflex_router import register_reflex_router_tools
+    orchestrator.reflex_router = register_reflex_router_tools(registry)
+    from tools.repo_graph import register_repo_graph_tools
+    orchestrator.repo_graph = register_repo_graph_tools(registry, workspace_root=".")
+    from tools.context_sensor import register_context_sensor_tools
+    orchestrator.context_sensor = register_context_sensor_tools(registry, workspace_root=".")
+    from tools.mission_queue import register_mission_queue_tools
+    orchestrator.mission_queue = register_mission_queue_tools(
+        registry, orchestrator=orchestrator, workspace_root=ws_path, brain=brain
+    )
+    from evolution.dpo_flywheel import register_dpo_flywheel_tools
+    orchestrator.dpo_flywheel = register_dpo_flywheel_tools(registry)
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"

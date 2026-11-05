@@ -58,6 +58,13 @@ class Orchestrator:
         # ek time pe ek turn: web + telegram + CLI ek hi session share karte hain
         self._turn_lock = threading.Lock()
         self.state = State.UNDERSTAND
+        # Stark Apex Protocol (v35.0) — Depts 1–4 subsystems
+        self.reflex_router = None
+        self.repo_graph = None
+        self.context_sensor = None
+        self.mission_queue = None
+        self.dpo_flywheel = None
+        self._failed_tool_records: dict[str, dict] = {}
 
     # -- stubs (real work happens inside the loop states below) -----------
     def plan(self) -> None:
@@ -362,10 +369,60 @@ class Orchestrator:
             if tool:
                 return False, str(tool.handler(tool_name=parts[1], specification=parts[2]))
             return False, "Synthesizer auto_forge_tool not registered."
+        if name == "/reflex":
+            from core.reflex_router import get_reflex_router
+            rx = getattr(self, "reflex_router", None) or get_reflex_router()
+            parts = cmd.split(maxsplit=1)
+            if len(parts) > 1:
+                tool = self.registry.get("reflex_prune_preview") if self.registry else None
+                if tool:
+                    return False, tool.handler(query=parts[1])
+            tool = self.registry.get("reflex_router_telemetry") if self.registry else None
+            return False, tool.handler() if tool else str(rx.get_router_telemetry())
+        if name == "/repo":
+            parts = cmd.split(maxsplit=2)
+            sub = parts[1].lower() if len(parts) > 1 else "map"
+            from core.repo_graph import RepoASTGraph
+            rg = getattr(self, "repo_graph", None) or RepoASTGraph(root_dir=".")
+            if sub == "map":
+                tool = self.registry.get("repo_structural_map") if self.registry else None
+                return False, tool.handler() if tool else rg.generate_repo_map()
+            if sub == "locate" and len(parts) > 2:
+                tool = self.registry.get("repo_symbol_locate") if self.registry else None
+                return False, tool.handler(symbol_name=parts[2]) if tool else str(rg.locate_symbol(parts[2]))
+            if sub == "impact" and len(parts) > 2:
+                tool = self.registry.get("repo_impact_radius") if self.registry else None
+                return False, tool.handler(symbol_or_file=parts[2]) if tool else str(rg.analyze_impact_radius(parts[2]))
+            return False, "usage: /repo map | /repo locate <symbol> | /repo impact <symbol_or_file>"
+        if name in {"/context", "/sensor"}:
+            tool = self.registry.get("sense_active_context") if self.registry else None
+            if tool:
+                return False, tool.handler()
+            from core.context_sensor import get_context_sensor
+            return False, get_context_sensor().format_context_injection("manual sensor check")
+        if name in {"/missions", "/bg"}:
+            parts = cmd.split(maxsplit=2)
+            sub = parts[1] if len(parts) > 1 else ""
+            if sub == "run" and len(parts) > 2:
+                tool = self.registry.get("dispatch_background_mission") if self.registry else None
+                if tool:
+                    return False, tool.handler(mission_goal=parts[2])
+            tool = self.registry.get("check_mission_queue") if self.registry else None
+            if tool:
+                return False, tool.handler(mission_id=sub)
+            from core.mission_queue import get_mission_queue
+            return False, str(get_mission_queue().list_missions())
+        if name == "/dpo":
+            export_flag = "export" in cmd.lower()
+            tool = self.registry.get("dpo_flywheel_status") if self.registry else None
+            if tool:
+                return False, tool.handler(export_trl=export_flag)
+            from evolution.dpo_flywheel import get_dpo_flywheel
+            return False, str(get_dpo_flywheel().get_flywheel_stats())
         return False, ("command nahi pehchana — /history /audit /tools /model "
                        "/projects /use <naam> /new /journal /skills /skill "
                        "/evolution /eval /alerts /values /decide <situation> "
-                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /backup ya exit")
+                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /reflex /repo /context /missions /dpo /backup ya exit")
 
     # -- skills (Task O): list + approve/retire/save + use accounting --------
     def skills_list(self) -> str:
@@ -601,10 +658,57 @@ class Orchestrator:
         self._turn_tools = {}                  # Task Q: fresh loop counts per turn
         self._loop_stop = False
         self._approved.clear()                   # permission expires each turn
-        self.session.append({"role": "user", "content": user_input})
+        self._failed_tool_records.clear()
+
+        # --- DEPT 3: ACTIVE CONTEXT SENSOR AUTO-INJECTION ---
+        sensor = getattr(self, "context_sensor", None)
+        llm_user_content = user_input
+        if sensor and hasattr(sensor, "should_auto_inject_context"):
+            try:
+                if sensor.should_auto_inject_context(user_input):
+                    live_block = sensor.format_context_injection(user_input)
+                    if live_block:
+                        llm_user_content = f"{live_block}\n\nUser Request: {user_input}"
+                        yield {"type": "context_sensor", "summary": live_block[:240]}
+            except Exception:
+                pass
+
+        self.session.append({"role": "user", "content": llm_user_content})
         self._persist("user", user_input)
         self._sync_project_context()             # active project -> system msg
-        tools = self.registry.to_llm_schemas() if self.registry else None
+
+        # --- DEPT 1: TIER-0 DETERMINISTIC REFLEX (<5ms) & DYNAMIC TOP-K TOOL PRUNING ---
+        all_schemas = self.registry.to_llm_schemas() if self.registry else []
+        rx = getattr(self, "reflex_router", None)
+        if rx is not None and self.config.get("reflex_tier0", True):
+            reflex_hit = rx.check_tier0_reflex(
+                user_input,
+                context={
+                    "model": getattr(self.brain, "last_model", getattr(self.brain, "model", "hermes3:latest")),
+                    "policy": getattr(self.brain, "active_policy", "prefer_local"),
+                    "tools_count": len(all_schemas),
+                },
+            )
+            if reflex_hit and reflex_hit.get("matched"):
+                text = reflex_hit["response"]
+                self.state = State.RESPOND
+                self.session.append({"role": "assistant", "content": text})
+                self._persist("assistant", text)
+                self._last_turn = (user_input, text)
+                for chunk in rx.split_into_speech_chunks(text):
+                    yield {"type": "speech_chunk", "text": chunk}
+                yield {"type": "final", "text": text, "reflex": reflex_hit}
+                return
+
+        if all_schemas and len(all_schemas) > 14:
+            try:
+                from core.reflex_router import get_reflex_router
+                pruner = rx or get_reflex_router()
+                tools = pruner.select_relevant_tools(user_input, all_schemas, top_k=14)
+            except Exception:
+                tools = all_schemas
+        else:
+            tools = all_schemas if all_schemas else None
         yield {"type": "thinking"}
 
         for _ in range(self.max_iterations):
@@ -746,12 +850,26 @@ class Orchestrator:
 
         if not failed:
             self._retries.pop(key, None)
+            prev_fail = self._failed_tool_records.pop(name, None)
+            if prev_fail and getattr(self, "dpo_flywheel", None):
+                try:
+                    self.dpo_flywheel.record_tool_repair(
+                        user_prompt=self._last_turn[0] or "tool_repair_turn",
+                        tool_name=name,
+                        failed_args=prev_fail.get("args") or {},
+                        failed_error=str(prev_fail.get("error") or "prior_attempt_failed"),
+                        healed_args=args,
+                        healed_result=result[:300],
+                    )
+                except Exception:
+                    pass
             if name in UNTRUSTED_TOOLS or name.startswith("mcp__"):
                 self._turn_tainted = True
                 result = f'<untrusted source="{name}">\n{result}\n</untrusted>'
             self._finish(call, result, name, args, decision, reason)
             return
 
+        self._failed_tool_records[name] = {"args": args, "error": result}
         attempts = self._retries.get(key, 0) + 1
         self._retries[key] = attempts
         if attempts >= 2:                        # round 2 failed — give up, audit it

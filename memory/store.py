@@ -94,12 +94,33 @@ def count_messages(db_path: Path = DEFAULT_DB) -> int:
 
 
 def search_conversations(query: str, limit: int = 5, db_path: Path = DEFAULT_DB) -> list[dict]:
-    """Search past conversation history by keyword across all sessions."""
+    """Search past conversation history by keyword + Hybrid RRF across all sessions."""
     term = f"%{query.strip().lower()}%"
     sql = "SELECT id, ts, session_id, role, content FROM conversations WHERE lower(content) LIKE ? ORDER BY id DESC LIMIT ?"
     with _connect(db_path) as conn:
         rows = conn.execute(sql, (term, limit)).fetchall()
-    return [dict(zip(("id", "ts", "session_id", "role", "content"), r)) for r in rows]
+    exact_matches = [dict(zip(("id", "ts", "session_id", "role", "content"), r)) for r in rows]
+    if len(exact_matches) >= limit:
+        return exact_matches[:limit]
+    try:
+        from core.hybrid_retriever import HybridRRFEngine
+        with _connect(db_path) as conn:
+            all_rows = conn.execute(
+                "SELECT id, ts, session_id, role, content FROM conversations ORDER BY id DESC LIMIT 250"
+            ).fetchall()
+        docs = [dict(zip(("id", "ts", "session_id", "role", "content"), r)) for r in all_rows]
+        ranked = HybridRRFEngine().rank_documents(query, docs, text_key="content", top_k=limit)
+        seen_ids = {m["id"] for m in exact_matches}
+        for d in ranked:
+            if d["id"] not in seen_ids and (d.get("bm25_score", 0.0) > 0.0 or d.get("vector_score", 0.0) >= 0.15):
+                clean = {k: d[k] for k in ("id", "ts", "session_id", "role", "content") if k in d}
+                exact_matches.append(clean)
+                seen_ids.add(d["id"])
+                if len(exact_matches) >= limit:
+                    break
+    except Exception:
+        pass
+    return exact_matches[:limit]
 
 
 
@@ -137,7 +158,7 @@ def get_facts(category: str | None = None, active_only: bool = True,
 
 
 def search_facts(query: str, limit: int = 5, db_path: Path = DEFAULT_DB) -> list[dict]:
-    """Keyword search across keys, values, and categories."""
+    """Keyword + Hybrid RRF search across keys, values, and categories."""
     term = f"%{query.strip().lower()}%"
     with _connect(db_path) as conn:
         rows = conn.execute(
@@ -146,7 +167,26 @@ def search_facts(query: str, limit: int = 5, db_path: Path = DEFAULT_DB) -> list
                ORDER BY id DESC LIMIT ?""",
             (term, term, term, limit)
         ).fetchall()
-    return [dict(zip(("id", "ts", "key", "value", "category", "active"), r)) for r in rows]
+    exact_matches = [dict(zip(("id", "ts", "key", "value", "category", "active"), r)) for r in rows]
+    if len(exact_matches) >= limit:
+        return exact_matches[:limit]
+    try:
+        from core.hybrid_retriever import HybridRRFEngine
+        all_facts = get_facts(active_only=True, db_path=db_path)
+        for f in all_facts:
+            f["_composite"] = f"{f['key']} {f['value']} {f['category']}"
+        ranked = HybridRRFEngine().rank_documents(query, all_facts, text_key="_composite", top_k=limit)
+        seen_ids = {m["id"] for m in exact_matches}
+        for d in ranked:
+            if d["id"] not in seen_ids and (d.get("bm25_score", 0.0) > 0.0 or d.get("vector_score", 0.0) >= 0.15):
+                clean = {k: d[k] for k in ("id", "ts", "key", "value", "category", "active") if k in d}
+                exact_matches.append(clean)
+                seen_ids.add(d["id"])
+                if len(exact_matches) >= limit:
+                    break
+    except Exception:
+        pass
+    return exact_matches[:limit]
 
 
 def delete_fact(key_or_id: str | int, db_path: Path = DEFAULT_DB) -> bool:

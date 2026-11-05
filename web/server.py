@@ -1463,6 +1463,121 @@ def create_app(orchestrator) -> FastAPI:
             )
         return JSONResponse(status_code=400, content={"detail": "file_path or code required"})
 
+    # ── Phase 29–35 (v35.0): STARK APEX PROTOCOL ENDPOINTS ─────────────────
+
+    @app.api_route("/api/chat/stream", methods=["GET", "POST"])
+    async def chat_stream_endpoint(request: Request, message: str = ""):
+        """Dedicated Server-Sent Events (SSE) token & speech_chunk streaming endpoint."""
+        if request.method == "POST":
+            body = await request.json()
+            msg = str((body or {}).get("message", "")).strip()
+        else:
+            msg = (message or "").strip()
+        if not msg:
+            return JSONResponse(status_code=400, content={"detail": "Message khaali hai — kuch likho."})
+
+        def event_generator():
+            try:
+                if msg.startswith("/"):
+                    _, text = orchestrator.command(msg)
+                    yield _sse({"type": "token", "text": text})
+                    yield _sse({"type": "done", "reply": text, "tool_trace": [],
+                                "provider": "reflex", "model": "command", "elapsed_ms": 1})
+                    return
+                for ev in orchestrator.run_turn_stream(msg):
+                    yield _sse(ev)
+            except Exception as exc:
+                yield _sse({"type": "error", "detail": f"kuch gadbad ho gayi — {exc}"})
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
+
+    @app.get("/api/apex/status")
+    def apex_status() -> dict:
+        """Unified Stark Apex v35.0 telemetry across all 4 departments."""
+        from core.context_sensor import get_context_sensor
+        from core.mission_queue import get_mission_queue
+        from core.reflex_router import get_reflex_router
+        from evolution.dpo_flywheel import get_dpo_flywheel
+        rx = getattr(orchestrator, "reflex_router", None) or get_reflex_router()
+        mq = getattr(orchestrator, "mission_queue", None) or get_mission_queue()
+        fw = getattr(orchestrator, "dpo_flywheel", None) or get_dpo_flywheel()
+        cs = getattr(orchestrator, "context_sensor", None) or get_context_sensor()
+        return {
+            "edition": "LUMI v35.0 — Stark Apex Protocol",
+            "dept1_reflex_router": rx.get_router_telemetry(),
+            "dept3_mission_queue": {
+                "missions": mq.list_missions(limit=10),
+            },
+            "dept3_dpo_flywheel": fw.get_flywheel_stats(),
+            "dept3_active_window": cs.get_active_window(),
+        }
+
+    @app.get("/api/apex/reflex")
+    def apex_reflex(query: str = "") -> dict:
+        """Inspect ReflexRouter telemetry or preview Top-K tool pruning for a query."""
+        from core.reflex_router import get_reflex_router
+        rx = getattr(orchestrator, "reflex_router", None) or get_reflex_router()
+        if query:
+            schemas = orchestrator.registry.to_llm_schemas() if getattr(orchestrator, "registry", None) else []
+            pruned = rx.select_relevant_tools(query, schemas, top_k=14)
+            return {
+                "query": query,
+                "total_before": len(schemas),
+                "selected_count": len(pruned),
+                "selected_tools": [t.get("function", {}).get("name") for t in pruned],
+            }
+        return rx.get_router_telemetry()
+
+    @app.get("/api/apex/repo")
+    def apex_repo(action: str = "map", target: str = "") -> dict:
+        """Query RepoASTGraph for structural map, symbol location, or impact radius."""
+        from core.repo_graph import RepoASTGraph
+        rg = getattr(orchestrator, "repo_graph", None) or RepoASTGraph(root_dir=".")
+        if not rg.modules:
+            rg.build_graph()
+        if action == "locate" and target:
+            return {"action": "locate", "target": target, "matches": rg.locate_symbol(target)}
+        if action == "impact" and target:
+            return rg.analyze_impact_radius(target)
+        return {"action": "map", "repo_map": rg.generate_repo_map(max_files=30)}
+
+    @app.get("/api/apex/context")
+    def apex_context() -> dict:
+        """Capture live workstation context (active foreground window, clipboard classification, git summary)."""
+        from core.context_sensor import get_context_sensor
+        cs = getattr(orchestrator, "context_sensor", None) or get_context_sensor()
+        return cs.capture_workstation_context()
+
+    @app.get("/api/apex/missions")
+    def apex_missions_list() -> dict:
+        from core.mission_queue import get_mission_queue
+        mq = getattr(orchestrator, "mission_queue", None) or get_mission_queue()
+        return {"missions": mq.list_missions(limit=25)}
+
+    @app.post("/api/apex/missions")
+    def apex_missions_submit(body: dict) -> dict:
+        from core.mission_queue import get_mission_queue
+        mq = getattr(orchestrator, "mission_queue", None) or get_mission_queue()
+        goal = str((body or {}).get("goal", "")).strip()
+        kind = str((body or {}).get("kind", "dag")).strip()
+        if not goal:
+            return JSONResponse(status_code=400, content={"detail": "goal required"})
+        tool = orchestrator.registry.get("dispatch_background_mission") if getattr(orchestrator, "registry", None) else None
+        if tool:
+            return {"ok": True, "summary": tool.handler(mission_goal=goal, mission_type=kind)}
+        res = mq.submit_mission(name=goal[:60], kind=kind, fn=lambda: {"goal": goal, "status": "completed"})
+        return {"ok": True, "mission": res}
+
+    @app.get("/api/apex/dpo")
+    def apex_dpo() -> dict:
+        from evolution.dpo_flywheel import get_dpo_flywheel
+        fw = getattr(orchestrator, "dpo_flywheel", None) or get_dpo_flywheel()
+        return fw.get_flywheel_stats()
+
     return app
 
 
