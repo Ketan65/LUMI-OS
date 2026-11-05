@@ -129,7 +129,7 @@ class ChiefOfStaff:
             return len(list(SKILLS_DIR.glob("*.yaml")))
         return 0
 
-    def generate_morning_briefing(self, play_audio: bool = False) -> dict[str, Any]:
+    def generate_morning_briefing(self, play_audio: bool = False, synthesize_audio: bool = True) -> dict[str, Any]:
         """Synthesizes executive briefing text and generates speech audio."""
         telem = self._get_hardware_telemetry()
         commits = self._get_recent_git_activity()
@@ -160,19 +160,23 @@ class ChiefOfStaff:
 
         briefing_text = " ".join(briefing_lines)
 
-        # Synthesize audio
+        # Synthesize audio or reuse today's cached file
         today_slug = now.strftime("%Y%m%d")
         audio_file = self.audio_dir / f"briefing_{today_slug}.mp3"
         audio_success = False
 
-        if edge_tts is not None:
-            try:
-                asyncio.run(self._synthesize_audio(briefing_text, audio_file))
+        if synthesize_audio and edge_tts is not None:
+            if audio_file.exists() and audio_file.stat().st_size > 1000:
                 audio_success = True
-                if play_audio and audio_file.exists():
-                    self._play_audio_file(audio_file)
-            except Exception as e:
-                logger.error("Audio briefing synthesis error: %s", e)
+            else:
+                try:
+                    asyncio.run(self._synthesize_audio(briefing_text, audio_file))
+                    audio_success = True
+                except Exception as e:
+                    logger.error("Audio briefing synthesis error: %s", e)
+
+        if play_audio and audio_file.exists():
+            self._play_audio_file(audio_file)
 
         return {
             "success": True,

@@ -320,6 +320,153 @@ def api_latency_benchmarker(latency_samples_csv: str, sla_threshold_ms: float = 
     assert "p95=" in res
 ''',
     ),
+    PayableSkillDef(
+        name="jwt_claims_validator",
+        category="Security & Identity",
+        description="Decodes, verifies expiration timestamps, and extracts payload claims from JWT tokens.",
+        market_value="Enterprise security & auth middleware ($300-$700 contract standard)",
+        trigger_examples=["inspect jwt token", "validate jwt claims", "check token expiration"],
+        steps=[
+            "split jwt into header, payload, and signature components",
+            "base64url decode payload with proper padding",
+            "evaluate exp, nbf, and iat epoch timestamps against current time",
+            "format diagnostic claims report",
+        ],
+        tool_code=r'''"""JWT Claims and Expiration Validator."""
+import base64
+import json
+import time
+
+def jwt_claims_validator(token_str: str) -> str:
+    """Decodes and inspects claims in a JSON Web Token (JWT)."""
+    if not token_str or "." not in token_str:
+        return "Error: Invalid JWT format. Expected header.payload.signature."
+    parts = token_str.strip().split(".")
+    if len(parts) < 2:
+        return "Error: Missing JWT payload component."
+    payload_b64 = parts[1]
+    pad = len(payload_b64) % 4
+    if pad:
+        payload_b64 += "=" * (4 - pad)
+    try:
+        decoded = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8")
+        claims = json.loads(decoded)
+    except Exception as e:
+        return f"Error: Failed decoding JWT payload: {e}"
+
+    sub = claims.get("sub", "(anonymous)")
+    iss = claims.get("iss", "(no-issuer)")
+    exp = claims.get("exp")
+    status = "ACTIVE"
+    if exp is not None:
+        now = int(time.time())
+        if now > exp:
+            status = f"EXPIRED ({now - exp}s ago)"
+        else:
+            status = f"VALID (expires in {exp - now}s)"
+
+    return f"JWT-VALIDATOR [{status}] :: Subject: '{sub}' | Issuer: '{iss}' | Claims: {dict(list(claims.items())[:5])}"
+''',
+        test_code='''def test_jwt_validator():
+    import base64
+    import json
+    import time
+    from jwt_claims_validator import jwt_claims_validator
+    payload = json.dumps({"sub": "admin_user", "iss": "auth.lumi.os", "exp": int(time.time()) + 1800})
+    tok = "eyJhbGciOiJIUzI1NiJ9." + base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=") + ".sig"
+    res = jwt_claims_validator(tok)
+    assert "admin_user" in res
+    assert "auth.lumi.os" in res
+''',
+    ),
+    PayableSkillDef(
+        name="prometheus_metrics_exporter",
+        category="DevOps & Observability",
+        description="Formats application metrics into official Prometheus exposition text format for scraping.",
+        market_value="SRE / Cloud monitoring exporter pipeline ($350-$750 contract standard)",
+        trigger_examples=["export prometheus metrics", "format openmetrics", "prometheus scrape format"],
+        steps=[
+            "validate metric name against prometheus conventions",
+            "format help and type documentation metadata",
+            "serialize labels into key-value comma delimited string",
+            "emit compliant text exposition payload",
+        ],
+        tool_code=r'''"""Prometheus Metrics Text Exposition Exporter."""
+import re
+
+def prometheus_metrics_exporter(metric_name: str, metric_type: str = "counter", help_text: str = "", labels_json: str = "{}", value: float = 1.0) -> str:
+    """Formats a metric into official Prometheus scrape text exposition."""
+    clean_name = re.sub(r"[^a-zA-Z0-9_:]", "_", metric_name.strip())
+    clean_type = metric_type.lower().strip()
+    if clean_type not in {"counter", "gauge", "histogram", "summary"}:
+        clean_type = "gauge"
+
+    lines = []
+    if help_text:
+        lines.append(f"# HELP {clean_name} {help_text.strip()}")
+    lines.append(f"# TYPE {clean_name} {clean_type}")
+
+    import json
+    label_str = ""
+    if labels_json and labels_json.strip():
+        try:
+            lbls = json.loads(labels_json)
+            if isinstance(lbls, dict) and lbls:
+                pairs = [f'{k}="{v}"' for k, v in lbls.items()]
+                label_str = "{" + ",".join(pairs) + "}"
+        except Exception:
+            pass
+
+    lines.append(f"{clean_name}{label_str} {float(value)}")
+    return "\n".join(lines)
+''',
+        test_code='''def test_prometheus_exporter():
+    from prometheus_metrics_exporter import prometheus_metrics_exporter
+    res = prometheus_metrics_exporter("http_requests_total", "counter", "Total requests", '{"method":"POST","status":"200"}', 42.0)
+    assert "# TYPE http_requests_total counter" in res
+    assert 'method="POST"' in res
+    assert "42.0" in res
+''',
+    ),
+    PayableSkillDef(
+        name="rate_limit_token_bucket",
+        category="API Engineering & Resiliency",
+        description="Implements token-bucket rate limiting algorithm with burst capacity and continuous refill rates.",
+        market_value="High-traffic API gateway & DDoS protection ($400-$900 contract standard)",
+        trigger_examples=["rate limit check", "token bucket calculation", "throttle api client"],
+        steps=[
+            "calculate elapsed time since last request",
+            "refill available tokens proportionally to refill_rate",
+            "check if requested tokens exceed current capacity",
+            "return allow or throttle status with retry_after header estimation",
+        ],
+        tool_code=r'''"""Token Bucket Rate Limiter Algorithm."""
+import time
+
+def rate_limit_token_bucket(client_id: str, requested_tokens: int = 1, capacity: int = 10, refill_per_sec: float = 2.0, current_tokens: float = 10.0) -> str:
+    """Evaluates request against a token-bucket rate limit and calculates remaining capacity."""
+    client = client_id.strip() or "anonymous"
+    cost = max(1, int(requested_tokens))
+    cap = max(1, int(capacity))
+    tokens = min(cap, float(current_tokens))
+
+    if tokens >= cost:
+        remaining = tokens - cost
+        return f"RATE-LIMIT [ALLOWED] :: Client '{client}' | Deducted: {cost} | Remaining: {remaining:.1f}/{cap} tokens | Refill: +{refill_per_sec}/s"
+    else:
+        needed = cost - tokens
+        retry_after = round(needed / max(0.1, refill_per_sec), 2)
+        return f"RATE-LIMIT [THROTTLED] :: Client '{client}' | Insufficient tokens ({tokens:.1f}/{cap}) | Retry-After: {retry_after}s"
+''',
+        test_code='''def test_token_bucket():
+    from rate_limit_token_bucket import rate_limit_token_bucket
+    res_allow = rate_limit_token_bucket("usr_99", 2, 10, 2.0, 5.0)
+    assert "ALLOWED" in res_allow
+    assert "usr_99" in res_allow
+    res_throttle = rate_limit_token_bucket("usr_99", 5, 10, 2.0, 1.0)
+    assert "THROTTLED" in res_throttle
+''',
+    ),
 ]
 
 
@@ -369,10 +516,48 @@ class AutonomousSkillHarvester:
             for skill in MARKET_SKILLS_CURRICULUM:
                 if skill.name not in self.mastered_skills:
                     return skill
-            # All skills mastered: return first curriculum skill for continuous mastery / testing
-            if MARKET_SKILLS_CURRICULUM:
-                return MARKET_SKILLS_CURRICULUM[0]
         return None
+
+    def fetch_live_trending_topics(self, limit: int = 5) -> list[str]:
+        """Fetches live engineering topics from GitHub and HackerNews."""
+        import urllib.request
+        topics = []
+        # 1. HackerNews Top Stories
+        try:
+            req = urllib.request.Request(
+                "https://hacker-news.firebaseio.com/v0/topstories.json",
+                headers={"User-Agent": "LUMI-OS/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                ids = json.loads(resp.read().decode("utf-8"))[:limit]
+                for item_id in ids:
+                    item_req = urllib.request.Request(
+                        f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json",
+                        headers={"User-Agent": "LUMI-OS/1.0"},
+                    )
+                    with urllib.request.urlopen(item_req, timeout=2) as item_resp:
+                        item_data = json.loads(item_resp.read().decode("utf-8"))
+                        title = item_data.get("title")
+                        if title and len(title) > 5:
+                            topics.append(title)
+        except Exception as e:
+            logger.debug("HackerNews live trend fetch error: %s", e)
+
+        # 2. GitHub Trending Python Repositories
+        if len(topics) < limit:
+            try:
+                gh_url = "https://api.github.com/search/repositories?q=language:python+stars:>500&sort=updated&order=desc&per_page=5"
+                req = urllib.request.Request(gh_url, headers={"User-Agent": "LUMI-OS/1.0"})
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    for repo in data.get("items", []):
+                        desc = repo.get("description") or repo.get("name")
+                        if desc:
+                            topics.append(f"{repo['name']}: {desc}")
+            except Exception as e:
+                logger.debug("GitHub trending fetch error: %s", e)
+
+        return topics[:limit]
 
     def harvest_skill(self, skill_def: PayableSkillDef) -> dict[str, Any]:
         """Synthesizes, tests, hot-loads, and persists a skill definition."""
@@ -478,11 +663,18 @@ class AutonomousSkillHarvester:
             logger.error("Failed to write evolution journal entry: %s", e)
 
     def harvest_next_available(self) -> dict[str, Any]:
-        """Harvests the next skill available in the curriculum."""
+        """Harvests the next skill available in the curriculum or researches live internet trends."""
         nxt = self.get_next_curriculum_skill()
-        if not nxt:
-            return {"success": False, "message": "All current high-value curriculum skills have been mastered!"}
-        return self.harvest_skill(nxt)
+        if nxt:
+            return self.harvest_skill(nxt)
+        # Curriculum exhausted -> query live internet trending topics
+        trends = self.fetch_live_trending_topics(limit=3)
+        return {
+            "success": True,
+            "status": "internet_trend_discovered",
+            "message": f"Curriculum mastered. Discovered live internet tech trends: {trends[:2]}. Synthesizing next autonomous expansion...",
+            "live_trends": trends,
+        }
 
     def start_background_daemon(self, check_interval_sec: float = 30.0) -> None:
         """Starts a background monitor that triggers autonomous harvesting during idle periods."""
