@@ -232,6 +232,15 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     )
     from evolution.dpo_flywheel import register_dpo_flywheel_tools
     orchestrator.dpo_flywheel = register_dpo_flywheel_tools(registry)
+    # ── Phase 37–40: AUTONOMOUS IDLE HARVESTER & SELF-HEALING ENGINE ─────
+    from core.idle_harvester import register_idle_harvester_tools, get_skill_harvester
+    register_idle_harvester_tools(registry)
+    orchestrator.skill_harvester = get_skill_harvester(registry)
+    orchestrator.skill_harvester.start_background_daemon(check_interval_sec=45.0)
+
+    from evolution.self_healing_engine import register_self_healing_tools, get_self_healing_engine
+    register_self_healing_tools(registry, ws_path)
+    orchestrator.self_healing = get_self_healing_engine(ws_path)
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"

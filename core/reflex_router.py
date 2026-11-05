@@ -252,6 +252,18 @@ _RE_TOOLS_COUNT = re.compile(
     re.IGNORECASE,
 )
 
+_RE_EVOLUTION_STATUS = re.compile(
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss|bhai)?[\s,!.:-]*"
+    r"(?:"
+    r".*(?:can\s+(?:you|u)|kya\s+tum)\s+.*(?:upgrade|evolve|learn|seekh).*(?:yourself|khud|apne\s+aap)|"
+    r".*(?:upgrade|evolve)\s+(?:and\s+evolve\s+)?yourself.*|"
+    r".*khali\s+(?:time|waqt|baithe)\s+.*(?:kya\s+karte\s+ho|seekh).*|"
+    r".*what\s+do\s+you\s+do\s+(?:when|while)\s+idle.*|"
+    r".*self[- ]healing\s+(?:feature|status|capability|kya\s+hai).*"
+    r")[\s?!.]*$",
+    re.IGNORECASE,
+)
+
 _RE_ALL_TOOLS_OVERRIDE = re.compile(
     r"\b(?:all\s+tools|saare\s+tools|every\s+tool|full\s+toolset|unpruned\s+tools)\b",
     re.IGNORECASE,
@@ -363,6 +375,19 @@ class ReflexRouter:
                 t0,
                 fast_tool={"name": "run_command", "args": {"command": "git status -sb"}},
             )
+
+        # G) Autonomous Evolution & Self-Healing check
+        if _RE_EVOLUTION_STATUS.match(clean):
+            resp = (
+                "Boss, absolutely! Main ek static chatbot nahi balki ek fully dynamic, "
+                "self-evolving sovereign AI OS hoon.\n\n"
+                "Mere paas 3 active self-evolution systems deployed hain:\n"
+                "1. ⚡ **Autonomous Idle Harvester**: Khali time me background me internet se high-value, payable developer skills (Stripe Webhook Guard, Dockerfile Auditor, CSV-to-SQLite ETL) autonomously seekhta aur sandbox me test karta hoon.\n"
+                "2. 🛠️ **Kernel Synthesis**: Runtime par naye Python tools compile karke apne ToolRegistry me live hot-load karta hoon.\n"
+                "3. 🩺 **Surgical Self-Healing**: Agar kisi script me syntax error, KeyError ya ZeroDivisionError aaye, toh sandbox me auto-patch karke DPO Flywheel me log karta hoon.\n\n"
+                "Aap `/harvest` chala ke instant nayi skill seekhne ko bol sakte ho, ya `/heal` se kisi bhi file ko auto-repair karwa sakte ho!"
+            )
+            return self._record_reflex("evolution_status", resp, t0)
 
         return None
 

@@ -422,10 +422,27 @@ class Orchestrator:
                 return False, tool.handler(export_trl=export_flag)
             from evolution.dpo_flywheel import get_dpo_flywheel
             return False, str(get_dpo_flywheel().get_flywheel_stats())
+        if name in {"/harvest", "/evolve"}:
+            tool = self.registry.get("harvest_market_skill") if self.registry else None
+            if tool:
+                return False, tool.handler()
+            from core.idle_harvester import get_skill_harvester
+            res = get_skill_harvester(self.registry).harvest_next_available()
+            return False, str(res)
+        if name == "/heal":
+            parts = cmd.split(maxsplit=2)
+            target = parts[1] if len(parts) > 1 else "app.py"
+            err_ctx = parts[2] if len(parts) > 2 else ""
+            tool = self.registry.get("self_heal_code") if self.registry else None
+            if tool:
+                return False, tool.handler(target_file=target, error_context=err_ctx)
+            from evolution.self_healing_engine import get_self_healing_engine
+            res = get_self_healing_engine().heal_workspace_file(target, err_ctx)
+            return False, str(res)
         return False, ("command nahi pehchana — /history /audit /tools /model "
                        "/projects /use <naam> /new /journal /skills /skill "
                        "/evolution /eval /alerts /values /decide <situation> "
-                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /reflex /repo /context /missions /dpo /backup ya exit")
+                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /reflex /repo /context /missions /dpo /harvest /heal /backup ya exit")
 
     # -- skills (Task O): list + approve/retire/save + use accounting --------
     def skills_list(self) -> str:
@@ -662,6 +679,11 @@ class Orchestrator:
         self._loop_stop = False
         self._approved.clear()                   # permission expires each turn
         self._failed_tool_records.clear()
+
+        # Update activity timestamp for autonomous idle harvester
+        harvester = getattr(self, "skill_harvester", None)
+        if harvester and hasattr(harvester, "record_user_activity"):
+            harvester.record_user_activity()
 
         # --- DEPT 3: ACTIVE CONTEXT SENSOR AUTO-INJECTION ---
         sensor = getattr(self, "context_sensor", None)

@@ -378,6 +378,36 @@ def create_app(orchestrator) -> FastAPI:
             return {"entries": [], "count_today": 0}
         return {"entries": j.last_n(limit), "count_today": j.count_today()}
 
+    @app.post("/api/evolution/harvest")
+    def harvest_skill_endpoint() -> dict:
+        harvester = getattr(orchestrator, "skill_harvester", None)
+        if not harvester:
+            from core.idle_harvester import get_skill_harvester
+            harvester = get_skill_harvester(orchestrator.registry)
+        return harvester.harvest_next_available()
+
+    @app.get("/api/evolution/skills")
+    def list_harvested_skills_endpoint() -> dict:
+        harvester = getattr(orchestrator, "skill_harvester", None)
+        if not harvester:
+            from core.idle_harvester import get_skill_harvester
+            harvester = get_skill_harvester(orchestrator.registry)
+        return {
+            "mastered_skills": sorted(list(harvester.mastered_skills)),
+            "count": len(harvester.mastered_skills),
+            "idle": harvester.is_idle(),
+        }
+
+    @app.post("/api/evolution/heal")
+    def self_heal_endpoint(payload: dict) -> dict:
+        engine = getattr(orchestrator, "self_healing", None)
+        if not engine:
+            from evolution.self_healing_engine import get_self_healing_engine
+            engine = get_self_healing_engine()
+        target = payload.get("target_file", "app.py")
+        err = payload.get("error_context", "")
+        return engine.heal_workspace_file(target, err)
+
     @app.get("/api/approvals/pending")
     def list_pending():
         mgr = getattr(orchestrator.gate, "approval_mgr", None)
