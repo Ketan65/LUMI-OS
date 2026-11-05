@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from tools.registry import Tool, ToolRegistry
+from safety.command_shield import CommandShield
 
 DEFAULT_TIMEOUT_SEC = 10.0
 MAX_OUTPUT_CHARS = 4000
@@ -31,6 +32,11 @@ def make_python_runner(workspace_path: str | Path) -> Callable[[str], str]:
         """Executes python code snippet in an isolated subprocess."""
         if not code or not code.strip():
             return "No code provided to execute."
+
+        # Intercept via CommandShield
+        is_safe, reason = CommandShield.inspect_python_code(code)
+        if not is_safe:
+            return reason
 
         # Prepare execution in workspace
         try:
@@ -85,6 +91,12 @@ def make_command_runner(workspace_path: str | Path) -> Callable[[str, int], str]
         """Executes terminal commands (git, pytest, npm, pip, etc.) with timeout and captures output."""
         if not command or not command.strip():
             return "No command provided."
+
+        # Intercept via CommandShield
+        is_safe, reason = CommandShield.inspect_command(command)
+        if not is_safe:
+            return reason
+
         try:
             timeout_sec = min(max(1, int(timeout)), 120)
         except Exception:

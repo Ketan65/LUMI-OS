@@ -6,6 +6,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from core.db_guard import open_hardened_sqlite
 
 
 class AuditLog:
@@ -31,9 +32,7 @@ class AuditLog:
                 pass  # column already there
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        return open_hardened_sqlite(self.db_path, timeout=30.0)
 
     def log(self, session_id: str, tool: str, args: dict, decision: str,
             result_summary: str, retry_used: int = 0) -> None:

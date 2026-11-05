@@ -13,6 +13,9 @@ from memory.repo import MemoryRepo
 from safety.audit import AuditLog
 from safety.gate import SafetyGate
 from tools.registry import ToolRegistry
+from core.context_compactor import compact_session_history
+from core.resilient_parser import coerce_tool_arguments, repair_and_parse_json
+from core.tool_watchdog import execute_tool_with_watchdog
 
 MAX_TOOL_CHARS = 6000          # model ko ek tool result se zyada context nahi milega
 UNTRUSTED_TOOLS = {"read_file", "search_files", "web_search", "web_read", "browse_page"}
@@ -674,6 +677,7 @@ class Orchestrator:
                 pass
 
         self.session.append({"role": "user", "content": llm_user_content})
+        self.session = compact_session_history(self.session, num_ctx=8192, max_ratio=0.65)
         self._persist("user", user_input)
         self._sync_project_context()             # active project -> system msg
 
@@ -787,7 +791,9 @@ class Orchestrator:
     def _run_tool(self, call: dict) -> None:
         name = str(call.get("name") or "")
         args = call.get("args") or {}
-        if not isinstance(args, dict):
+        if isinstance(args, str):
+            args = repair_and_parse_json(args)
+        elif not isinstance(args, dict):
             args = {"input": str(args)}
         print(f"⚙️ TOOL: {name}({SafetyGate.fmt_args(args)})")
 
@@ -840,13 +846,9 @@ class Orchestrator:
         else:
             decision = "auto"
 
-        # --- ACT: execute, with 1 auto retry on failure (req #10 seed) ---
-        try:
-            result, failed = str(tool.handler(**args)), False
-        except TypeError:
-            result, failed = "tool arguments gadbad the", True
-        except Exception as exc:  # noqa: BLE001 — IO faults feed the retry layer
-            result, failed = f"Tool error: {exc}", True
+        # --- ACT: execute with watchdog isolation (req #10 seed) ---
+        args = coerce_tool_arguments(tool.params_schema, args)
+        result, failed = execute_tool_with_watchdog(tool, args, timeout_sec=30.0)
 
         if not failed:
             self._retries.pop(key, None)

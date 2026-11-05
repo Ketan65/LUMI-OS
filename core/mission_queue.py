@@ -15,11 +15,15 @@ Features:
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Callable
+
+MISSIONS_STATE_PATH = Path("data/missions_state.json")
 
 
 class AsyncMissionQueue:
@@ -39,6 +43,33 @@ class AsyncMissionQueue:
         self._lock = threading.Lock()
         self._missions: dict[str, dict[str, Any]] = {}
         self._futures: dict[str, Future] = {}
+        self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        """Loads historical mission records from disk if available."""
+        if not MISSIONS_STATE_PATH.exists():
+            return
+        try:
+            with open(MISSIONS_STATE_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    with self._lock:
+                        self._missions.update(data)
+        except Exception:
+            pass
+
+    def _save_to_disk(self) -> None:
+        """Persists the most recent 100 mission records to disk."""
+        try:
+            MISSIONS_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with self._lock:
+                # Keep last 100 missions to prevent unbounded file growth
+                items = list(self._missions.items())[-100:]
+                snapshot = dict(items)
+            with open(MISSIONS_STATE_PATH, "w", encoding="utf-8") as f:
+                json.dump(snapshot, f, indent=2)
+        except Exception:
+            pass
 
     def submit_mission(
         self,
@@ -91,6 +122,7 @@ class AsyncMissionQueue:
                         f"[{m['finished_at']}] Mission completed in {elapsed}ms"
                     )
                     snapshot = dict(m)
+                self._save_to_disk()
                 if self.on_complete:
                     try:
                         self.on_complete(snapshot)
@@ -109,6 +141,7 @@ class AsyncMissionQueue:
                         f"[{m['finished_at']}] Mission failed after {elapsed}ms: {exc}"
                     )
                     snapshot = dict(m)
+                self._save_to_disk()
                 if self.on_complete:
                     try:
                         self.on_complete(snapshot)
@@ -117,6 +150,7 @@ class AsyncMissionQueue:
                 raise
 
         fut = self._executor.submit(_runner)
+        self._save_to_disk()
         with self._lock:
             self._futures[mission_id] = fut
             return dict(self._missions[mission_id])

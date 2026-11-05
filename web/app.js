@@ -969,6 +969,12 @@ function handle(ev) {
     thinking(false);
     playSfx("alert");
     banner(ev.detail);
+    if (curRow) {
+      curRow.remove();
+      curRow = null;
+      curText = "";
+    }
+    addRow("sys", '<div class="syscard" style="border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08);">' + md(ev.detail || "System Error") + '</div>');
   }
 }
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from core.db_guard import open_hardened_sqlite
 
 DEFAULT_DB = Path("data") / "lumi.db"
 BACKUP_DIR = Path("data") / "backups"
@@ -12,11 +13,7 @@ KEEP_BACKUPS = 7
 
 
 def _connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA journal_mode=WAL")   # crash safety: writes don't corrupt on kill
-    conn.execute("PRAGMA synchronous=NORMAL")  # speed + WAL = still durable enough
-    return conn
+    return open_hardened_sqlite(db_path, timeout=30.0)
 
 
 def init_db(db_path: Path = DEFAULT_DB) -> Path:

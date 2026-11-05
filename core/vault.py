@@ -11,6 +11,7 @@ import math
 import os
 import re
 import sqlite3
+from core.db_guard import open_hardened_sqlite
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -90,7 +91,7 @@ class NeuralVault:
         self._init_db()
 
     def _init_db(self) -> None:
-        with sqlite3.connect(self.db_path) as conn:
+        with open_hardened_sqlite(self.db_path) as conn:
             conn.execute("PRAGMA journal_mode = WAL;")
             conn.execute(
                 """
@@ -229,7 +230,7 @@ class NeuralVault:
         skipped_count = 0
         error_count = 0
 
-        with sqlite3.connect(self.db_path) as conn:
+        with open_hardened_sqlite(self.db_path) as conn:
             for file_path in files_to_process:
                 try:
                     stat = file_path.stat()
@@ -317,7 +318,7 @@ class NeuralVault:
 
         now = _time.time()
         doc_path = f"{source}://{int(now)}"
-        with sqlite3.connect(self.db_path) as conn:
+        with open_hardened_sqlite(self.db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO documents (file_path, file_ext, mtime, size, indexed_at) "
                 "VALUES (?, ?, ?, ?, ?)",
@@ -358,7 +359,7 @@ class NeuralVault:
             return []
 
         # Connect to DB
-        with sqlite3.connect(self.db_path) as conn:
+        with open_hardened_sqlite(self.db_path) as conn:
             # Total chunks
             total_chunks_row = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()
             total_chunks = total_chunks_row[0] if total_chunks_row else 1
@@ -445,7 +446,7 @@ class NeuralVault:
         if not self.db_path.exists():
             return {"documents": 0, "chunks": 0, "db_size_kb": 0}
 
-        with sqlite3.connect(self.db_path) as conn:
+        with open_hardened_sqlite(self.db_path) as conn:
             docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
             chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
 

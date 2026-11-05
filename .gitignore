@@ -29,6 +29,7 @@ data/*.onnx
 data/*.xml
 data/synthesized_tools/
 data/synthesized_tools.json
+data/missions_state.json
 data/reasoning_history.json
 data/biometrics.json
 data/fintech.db

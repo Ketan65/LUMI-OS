@@ -9,7 +9,10 @@ from pathlib import Path
 import yaml
 
 from brain.base import Brain, BrainReply
+from brain.circuit_breaker import OllamaCircuitBreaker
+from core.context_compactor import compact_session_history
 from core.personal_identity import build_identity_prompt_block, get_full_name, get_user_name
+from core.resilient_parser import repair_and_parse_json
 
 # Persona system prompt — Super-intelligent human partner (JARVIS caliber)
 SYSTEM_PROMPT = """Tum LUMI ho — apne Master Operator ke supreme, super-intelligent JARVIS-class AI co-pilot aur elite software architect.
@@ -236,7 +239,8 @@ class OllamaBrain(Brain):
 
         active_tools = filter_tools_for_context(tools, messages)
         sys_content = self.system_prompt + get_dynamic_telemetry()
-        payload = [{"role": "system", "content": sys_content}] + list(messages)
+        raw_payload = [{"role": "system", "content": sys_content}] + list(messages)
+        payload = compact_session_history(raw_payload, num_ctx=self.num_ctx, max_ratio=0.65)
         self._warn_context(payload)        # truncation risk = one log line, no crash
         kwargs: dict = {"model": self.model, "messages": payload,
                         "keep_alive": self.keep_alive,
@@ -251,13 +255,19 @@ class OllamaBrain(Brain):
             if on_token is None:
                 return self._parse(client.chat(**kwargs))
             return self._stream(client.chat(**{**kwargs, "stream": True}), on_token)
-        except ConnectionError:
-            raise
         except Exception as exc:  # noqa: BLE001 — translate every failure to friendly text
             text = str(exc).lower()
             down = ("connect", "connection", "refused", "fetch", "unreachable")
             if any(m in text for m in down):
-                raise ConnectionError("Ollama band hai, 'ollama serve' chalao") from None
+                # Try auto-recovery
+                if OllamaCircuitBreaker.attempt_auto_heal(host=host, wait_timeout=3.5):
+                    try:
+                        if on_token is None:
+                            return self._parse(client.chat(**kwargs))
+                        return self._stream(client.chat(**{**kwargs, "stream": True}), on_token)
+                    except Exception:
+                        pass
+                raise ConnectionError(OllamaCircuitBreaker.format_failover_message()) from None
             raise RuntimeError(f"Brain error: {exc}") from None
 
     @classmethod
@@ -284,10 +294,7 @@ class OllamaBrain(Brain):
                 if args is None and isinstance(fn, dict):
                     args = fn.get("arguments")
                 if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except ValueError:
-                        args = {"_raw": args}
+                    args = repair_and_parse_json(args)
                 calls.append({"name": name, "args": args or {}})
         text = "".join(text_parts)
         if not calls and text:
@@ -321,10 +328,7 @@ class OllamaBrain(Brain):
             if args is None and isinstance(fn, dict):
                 args = fn.get("arguments")
             if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except ValueError:
-                    args = {"_raw": args}
+                args = repair_and_parse_json(args)
             calls.append({"name": name, "args": args or {}})
         if not calls and text:
             # fallback: small models often emit the tool call as JSON text
