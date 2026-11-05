@@ -1608,6 +1608,48 @@ def create_app(orchestrator) -> FastAPI:
         fw = getattr(orchestrator, "dpo_flywheel", None) or get_dpo_flywheel()
         return fw.get_flywheel_stats()
 
+    @app.get("/api/chief/briefing")
+    def chief_briefing() -> dict:
+        from core.chief_of_staff import get_chief_of_staff
+        chief = getattr(orchestrator, "chief_of_staff", None) or get_chief_of_staff()
+        return chief.generate_morning_briefing()
+
+    @app.post("/api/chief/devlog")
+    def chief_devlog() -> dict:
+        from core.chief_of_staff import get_chief_of_staff
+        chief = getattr(orchestrator, "chief_of_staff", None) or get_chief_of_staff()
+        return chief.generate_daily_devlog()
+
+    @app.get("/api/proactive/alerts")
+    def proactive_alerts() -> dict:
+        from core.proactive_sentinel import get_proactive_sentinel
+        sentinel = getattr(orchestrator, "proactive_sentinel", None) or get_proactive_sentinel()
+        return {
+            "alerts": sentinel.get_pending_alerts(),
+            "ambient_context": sentinel.inspect_ambient_context(),
+        }
+
+    @app.get("/api/council/telemetry")
+    def council_telemetry() -> dict:
+        from brain.model_council import get_model_council
+        council = getattr(orchestrator, "model_council", None) or get_model_council()
+        return council.get_telemetry_summary()
+
+    @app.get("/api/bounty/scan")
+    def bounty_scan(target_dir: str = "core") -> dict:
+        from dataclasses import asdict
+        from core.bounty_hunter import get_bounty_hunter
+        bh = getattr(orchestrator, "bounty_hunter", None) or get_bounty_hunter()
+        findings = [asdict(f) for f in bh.scan_directory(target_dir=target_dir)]
+        return {"findings": findings, "count": len(findings)}
+
+    @app.post("/api/screen/analyze")
+    def screen_analyze(body: dict | None = None) -> dict:
+        from core.visual_agent import get_visual_agent
+        va = getattr(orchestrator, "visual_agent", None) or get_visual_agent()
+        inst = (body or {}).get("instruction", "Describe what is visible on this screen.")
+        return {"ok": True, "analysis": va.analyze_screen(inst)}
+
     return app
 
 

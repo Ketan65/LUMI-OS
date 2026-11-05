@@ -439,6 +439,49 @@ class Orchestrator:
             from evolution.self_healing_engine import get_self_healing_engine
             res = get_self_healing_engine().heal_workspace_file(target, err_ctx)
             return False, str(res)
+        if name == "/briefing":
+            tool = self.registry.get("generate_morning_briefing") if self.registry else None
+            if tool:
+                return False, tool.handler()
+            from core.chief_of_staff import get_chief_of_staff
+            return False, get_chief_of_staff(self.registry).generate_morning_briefing()["briefing_text"]
+        if name == "/devlog":
+            tool = self.registry.get("generate_daily_devlog") if self.registry else None
+            if tool:
+                return False, tool.handler()
+            from core.chief_of_staff import get_chief_of_staff
+            return False, get_chief_of_staff(self.registry).generate_daily_devlog()["summary"]
+        if name == "/screen":
+            parts = cmd.split(maxsplit=1)
+            inst = parts[1] if len(parts) > 1 else "Describe everything visible on this screen."
+            tool = self.registry.get("screen_capture_and_describe") if self.registry else None
+            if tool:
+                return False, tool.handler(instruction=inst)
+            from core.visual_agent import get_visual_agent
+            return False, get_visual_agent(self.registry).analyze_screen(inst)
+        if name in {"/sentinel", "/proactive"}:
+            tool = self.registry.get("check_proactive_alerts") if self.registry else None
+            if tool:
+                return False, tool.handler()
+            from core.proactive_sentinel import get_proactive_sentinel
+            return False, get_proactive_sentinel(self.registry).get_alerts_summary()
+        if name == "/council":
+            tool = self.registry.get("get_council_telemetry") if self.registry else None
+            if tool:
+                return False, str(tool.handler())
+            from brain.model_council import get_model_council
+            return False, str(get_model_council(self.registry).get_telemetry_summary())
+        if name == "/bounty":
+            parts = cmd.split(maxsplit=2)
+            sub = parts[1] if len(parts) > 1 else "scan"
+            from core.bounty_hunter import get_bounty_hunter
+            bh = get_bounty_hunter(self.registry)
+            if sub == "scan":
+                target = parts[2] if len(parts) > 2 else "core"
+                return False, bh.scan_directory_summary(target)
+            if sub == "patch" and len(parts) > 2:
+                return False, str(bh.generate_test_gap_patch(parts[2]))
+            return False, "usage: /bounty scan <dir> | /bounty patch <file.py>"
         return False, ("command nahi pehchana — /history /audit /tools /model "
                        "/projects /use <naam> /new /journal /skills /skill "
                        "/evolution /eval /alerts /values /decide <situation> "

@@ -241,6 +241,29 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     from evolution.self_healing_engine import register_self_healing_tools, get_self_healing_engine
     register_self_healing_tools(registry, ws_path)
     orchestrator.self_healing = get_self_healing_engine(ws_path)
+
+    # Phase 38: Proactive Sentinel & Ambient Guard
+    from core.proactive_sentinel import get_proactive_sentinel
+    sentinel = get_proactive_sentinel(registry=registry, healing_engine=orchestrator.self_healing)
+    sentinel.start_background_daemon()
+    orchestrator.proactive_sentinel = sentinel
+
+    # Phase 38: Visual Computer Use Agent
+    from core.visual_agent import get_visual_agent
+    orchestrator.visual_agent = get_visual_agent(registry=registry)
+
+    # Phase 38: Chief of Staff (Morning Briefing & DevLog)
+    from core.chief_of_staff import get_chief_of_staff
+    orchestrator.chief_of_staff = get_chief_of_staff(registry=registry)
+
+    # Phase 38: Model Council Router
+    from brain.model_council import get_model_council
+    orchestrator.model_council = get_model_council(registry=registry)
+
+    # Phase 38: Bounty Hunter Engine
+    from core.bounty_hunter import get_bounty_hunter
+    orchestrator.bounty_hunter = get_bounty_hunter(registry=registry)
+
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"
@@ -300,7 +323,7 @@ def pick_port() -> int | None:
     return None
 
 
-def run_web(orchestrator: Orchestrator) -> None:
+def run_web(orchestrator: Orchestrator, auto_open: bool = True) -> None:
     """--web: uvicorn on 127.0.0.1 (LAN exposure NAHI — see web/server.py)."""
     import uvicorn
     import webbrowser
@@ -315,17 +338,35 @@ def run_web(orchestrator: Orchestrator) -> None:
     url = f"http://127.0.0.1:{port}"
     orchestrator.web_port = port                # /values CLI line ke liye real port
     print(f"[web] {url} par chal raha hai (localhost only)")
-    webbrowser.open(url)                     # auto-open browser
+    if auto_open:
+        webbrowser.open(url)                     # auto-open browser
     uvicorn.run(create_app(orchestrator), host="127.0.0.1", port=port,
                 log_level="warning")
 
 
+def run_hud(orchestrator: Orchestrator | None = None, port: int = 8765) -> None:
+    """--hud: launches CustomTkinter floating cyberpunk desktop HUD overlay."""
+    from interface.desktop_hud import launch_hud
+    print(f"[hud] Desktop HUD active. Press [Alt + Space] to summon anywhere.")
+    hud = launch_hud(api_url=f"http://127.0.0.1:{port}/api/chat")
+    hud.run()
+
+
 def main() -> None:
-    web_mode = "--web" in sys.argv[1:]
+    hud_mode = "--hud" in sys.argv[1:]
+    web_mode = "--web" in sys.argv[1:] or hud_mode
     orchestrator = build_orchestrator(web=web_mode)
     if orchestrator is None:
         return
-    if web_mode:
+    if hud_mode:
+        import threading
+        import time
+        # Run Web Cockpit in background thread so HUD can interact with it
+        t = threading.Thread(target=lambda: run_web(orchestrator, auto_open=False), daemon=True)
+        t.start()
+        time.sleep(1.0)
+        run_hud(orchestrator, port=getattr(orchestrator, "web_port", 8765) or 8765)
+    elif web_mode:
         run_web(orchestrator)
     else:
         cli.run(orchestrator)               # default = CLI (as before)

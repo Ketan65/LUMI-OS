@@ -30,6 +30,9 @@ data/*.xml
 data/synthesized_tools/
 data/synthesized_tools.json
 data/missions_state.json
+data/audio/
+data/bounty_patches/
+data/devlogs/
 data/reasoning_history.json
 data/biometrics.json
 data/fintech.db
