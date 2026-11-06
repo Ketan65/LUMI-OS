@@ -1650,6 +1650,38 @@ def create_app(orchestrator) -> FastAPI:
         inst = (body or {}).get("instruction", "Describe what is visible on this screen.")
         return {"ok": True, "analysis": va.analyze_screen(inst)}
 
+    @app.get("/api/quant/portfolio")
+    def quant_portfolio() -> dict:
+        import json
+        from finance.institutional_quant import get_quant_engine
+        qe = getattr(orchestrator, "quant_engine", None) or get_quant_engine()
+        return json.loads(qe.portfolio_file.read_text(encoding="utf-8"))
+
+    @app.post("/api/quant/backtest")
+    def quant_backtest(body: dict | None = None) -> dict:
+        from dataclasses import asdict
+        from finance.institutional_quant import get_quant_engine
+        qe = getattr(orchestrator, "quant_engine", None) or get_quant_engine()
+        strat = (body or {}).get("strategy", "ema_momentum")
+        sym = (body or {}).get("symbol", "BTC/USDT")
+        cap = float((body or {}).get("initial_capital", 10000.0))
+        bars = int((body or {}).get("bars", 300))
+        res = qe.backtest(strategy=strat, symbol=sym, initial_capital=cap, bars=bars)
+        return {"ok": True, "result": asdict(res), "tear_sheet": qe.format_backtest_summary(res)}
+
+    @app.post("/api/quant/trade")
+    def quant_trade(body: dict | None = None) -> dict:
+        from finance.institutional_quant import get_quant_engine
+        qe = getattr(orchestrator, "quant_engine", None) or get_quant_engine()
+        sym = str((body or {}).get("symbol", "BTC/USDT")).upper()
+        action = str((body or {}).get("action", "BUY")).upper()
+        qty = float((body or {}).get("quantity", 0.1))
+        price = float((body or {}).get("price", 100.0))
+        sl = float(body.get("stop_loss")) if (body or {}).get("stop_loss") else None
+        tp = float(body.get("take_profit")) if (body or {}).get("take_profit") else None
+        res = qe.execute_trade(symbol=sym, action=action, quantity=qty, price=price, stop_loss=sl, take_profit=tp)
+        return res
+
     return app
 
 

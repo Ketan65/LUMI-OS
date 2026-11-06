@@ -264,6 +264,10 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     from core.bounty_hunter import get_bounty_hunter
     orchestrator.bounty_hunter = get_bounty_hunter(registry=registry)
 
+    # Phase 39: Institutional Quant & Paper Trading Sandbox (Isolated)
+    from finance.institutional_quant import get_quant_engine
+    orchestrator.quant_engine = get_quant_engine(registry=registry)
+
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"

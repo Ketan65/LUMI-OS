@@ -33,6 +33,7 @@ data/missions_state.json
 data/audio/
 data/bounty_patches/
 data/devlogs/
+data/quant/
 data/reasoning_history.json
 data/biometrics.json
 data/fintech.db

@@ -482,6 +482,31 @@ class Orchestrator:
             if sub == "patch" and len(parts) > 2:
                 return False, str(bh.generate_test_gap_patch(parts[2]))
             return False, "usage: /bounty scan <dir> | /bounty patch <file.py>"
+        if name in {"/quant", "/paper"}:
+            parts = cmd.split(maxsplit=4)
+            sub = parts[1].lower() if len(parts) > 1 else "portfolio"
+            from finance.institutional_quant import get_quant_engine
+            qe = getattr(self, "quant_engine", None) or get_quant_engine(self.registry)
+            if sub in {"portfolio", "status", "balance"}:
+                return False, qe.get_portfolio_summary()
+            if sub in {"backtest", "test"} and len(parts) > 2:
+                strat = parts[2].lower()
+                sym = parts[3].upper() if len(parts) > 3 else "BTC/USDT"
+                res = qe.backtest(strategy=strat, symbol=sym)
+                return False, qe.format_backtest_summary(res)
+            if sub in {"buy", "sell"} and len(parts) >= 4:
+                action = sub.upper()
+                sym = parts[2].upper()
+                try:
+                    qty = float(parts[3])
+                    price = float(parts[4]) if len(parts) > 4 else 100.0
+                except ValueError:
+                    return False, "Error: quantity and price must be numbers."
+                trade = qe.execute_trade(symbol=sym, action=action, quantity=qty, price=price)
+                if not trade.get("success"):
+                    return False, f"Paper Order Failed: {trade.get('error')}"
+                return False, f"Paper Order Executed: {action} {qty} {sym} @ ${price:,.2f} | Virtual Cash Remaining: ${trade['portfolio']['virtual_cash']:,.2f}"
+            return False, "usage: /quant portfolio | /quant backtest <ema_momentum|bollinger_rsi|donchian_breakout> [symbol] | /quant <buy|sell> <symbol> <qty> <price>"
         return False, ("command nahi pehchana — /history /audit /tools /model "
                        "/projects /use <naam> /new /journal /skills /skill "
                        "/evolution /eval /alerts /values /decide <situation> "
