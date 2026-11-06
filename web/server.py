@@ -1742,6 +1742,40 @@ def create_app(orchestrator) -> FastAPI:
         res = qe.execute_trade(symbol=sym, action=action, quantity=qty, price=price, stop_loss=sl, take_profit=tp)
         return res
 
+    # Phase 41: Autonomous Admin Capital & Revenue Engine Endpoints
+    @app.get("/api/capital/overview")
+    def capital_overview() -> dict:
+        from core.capital_engine import get_capital_engine
+        ce = getattr(orchestrator, "capital_engine", None) or get_capital_engine()
+        return ce.get_capital_overview()
+
+    @app.post("/api/capital/build_gig")
+    def capital_build_gig(body: dict | None = None) -> dict:
+        from core.capital_engine import get_capital_engine
+        ce = getattr(orchestrator, "capital_engine", None) or get_capital_engine()
+        b = body or {}
+        title = str(b.get("title", "Python Automation Microservice"))
+        brief = str(b.get("brief", "Automated API integration and data transformation pipeline."))
+        client = str(b.get("client_name", "Autonomous Market Client"))
+        budget = float(b.get("budget_usd", 350.0))
+        return ce.bid_and_build_gig(title=title, brief=brief, client_name=client, budget_usd=budget)
+
+    @app.get("/api/capital/bounties")
+    def capital_hunt_bounties(target_dir: str = "core") -> dict:
+        from core.capital_engine import get_capital_engine
+        ce = getattr(orchestrator, "capital_engine", None) or get_capital_engine()
+        return ce.hunt_bounties(target_dir=target_dir)
+
+    @app.post("/api/capital/forge_saas")
+    def capital_forge_saas(body: dict | None = None) -> dict:
+        from core.capital_engine import get_capital_engine
+        ce = getattr(orchestrator, "capital_engine", None) or get_capital_engine()
+        b = body or {}
+        name = str(b.get("product_name", "DocuPulse AI"))
+        niche = str(b.get("niche", "Automated PDF Analysis API"))
+        mrr = float(b.get("projected_mrr", 450.0))
+        return ce.forge_micro_saas(product_name=name, niche=niche, projected_mrr=mrr)
+
     return app
 
 

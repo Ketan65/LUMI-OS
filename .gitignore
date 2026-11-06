@@ -31,6 +31,7 @@ data/synthesized_tools/
 data/synthesized_tools.json
 data/missions_state.json
 data/audio/
+data/capital/
 data/bounty_patches/
 data/devlogs/
 data/quant/

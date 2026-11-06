@@ -268,6 +268,10 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     from finance.institutional_quant import get_quant_engine
     orchestrator.quant_engine = get_quant_engine(registry=registry)
 
+    # Phase 41: Autonomous Admin Capital Engine & Revenue Harvester
+    from core.capital_engine import get_capital_engine
+    orchestrator.capital_engine = get_capital_engine(registry=registry)
+
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"
