@@ -166,12 +166,15 @@ voice:
     kokoro_voices: "~/.cache/kokoro-onnx/voices-v1.1-zh.bin"
     kokoro_voice: auto          # auto = af_heart (Latin); Devanagari pe Hindi voice auto-pick
     kokoro_speed: 1.0
+  silence_cutoff_ms: 400        # 400ms ultra-low latency silence cutoff (down from 1500ms)
+  barge_in_ms: 35               # sub-40ms instant microphone interrupt
+  streaming_tts: true           # sentence-level streaming TTS playback
   stt:
     enabled: true
     model: "small"              # faster-whisper small — Hinglish sweet spot
     language: "hi"              # Hindi priority; "auto" = detect
-    compute_type: "int8"        # CPU friendly; "float16" if CUDA available
-    device: "auto"              # auto | cpu | cuda
+    compute_type: "float16"     # CUDA float16 on NVIDIA RTX 5060 GPU
+    device: "cuda"              # cuda | auto | cpu
   wake_word:
     enabled: true
     phrase: "hey lumi"          # wake word (STT-based match if openWakeWord models unavailable)
