@@ -271,6 +271,8 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     # Phase 41: Autonomous Admin Capital Engine & Revenue Harvester
     from core.capital_engine import get_capital_engine
     orchestrator.capital_engine = get_capital_engine(registry=registry)
+    from core.fast_cashflow import get_fast_cashflow_dispatcher
+    orchestrator.fast_cashflow = get_fast_cashflow_dispatcher(registry=registry)
 
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
