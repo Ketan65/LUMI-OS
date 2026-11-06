@@ -22,6 +22,18 @@ from tools.files import boundary_message, resolve_within
 VALID = {"auto", "ask", "block"}
 WORKSPACE_DIR = "workspace"          # LUMI ka sandbox — home ke andar
 WRITE_TOOLS = {"write_file", "edit_file", "delete_file"}
+TAINT_SENSITIVE_TOOLS = WRITE_TOOLS | {
+    "run_command",
+    "run_python",
+    "system_control",
+    "gui_control",
+    "register_project",
+    "forge_custom_tool",
+    "revoke_synthesized_tool",
+    "mesh_dispatch_task",
+    "cluster_register",
+    "execute_goal",
+}
 
 
 class ApprovalManager:
@@ -138,7 +150,8 @@ class SafetyGate:
         if policy == "block":
             self.log(session_id, tool_name, args, "block", "policy:block")
             return "block", "policy"
-        if tainted and (tool_name in WRITE_TOOLS or tool_name == "register_project"):
+        if tainted and tool_name in TAINT_SENSITIVE_TOOLS:
+            self.log(session_id, tool_name, args, "ask", "taint:untrusted_data_in_turn")
             return "ask", "taint:untrusted_data_in_turn"
         if policy == "auto":
             return "allow", "policy:auto"

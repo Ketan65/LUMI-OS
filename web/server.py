@@ -7,6 +7,8 @@ Future phase: auth tabhi jab LAN chahiye (abhi ke liye localhost = implicit auth
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import shutil
 import sqlite3
 import time
@@ -17,6 +19,8 @@ import os
 import secrets
 import yaml
 from urllib.parse import urlparse
+
+from core.security_sentinel import get_security_sentinel
 
 from fastapi import FastAPI, Form, Request, UploadFile
 from fastapi.responses import (FileResponse, JSONResponse, Response,
@@ -896,6 +900,42 @@ def create_app(orchestrator) -> FastAPI:
         synth = getattr(orchestrator, "emotion_voice", None) or get_emotion_synthesizer()
         return synth.set_mode(mode=p.mode, pacing_offset=p.pacing_offset)
 
+    def _verify_cluster_auth(request: Request, body_dict: dict) -> tuple[bool, str]:
+        cluster_cfg = (orchestrator.config if orchestrator else {}).get("cluster", {})
+        cluster_secret = str(cluster_cfg.get("secret_key", "lumi_mesh_sovereign_key"))
+
+        sig = request.headers.get("x-lumi-signature", "")
+        ts_str = request.headers.get("x-lumi-timestamp", "")
+        if sig and ts_str:
+            try:
+                ts = float(ts_str)
+                if abs(time.time() - ts) > 300.0:
+                    return False, "Replay attack detected: timestamp older than 300 seconds."
+                raw_payload = f"{ts_str}:{json.dumps(body_dict, sort_keys=True)}"
+                expected = hmac.new(cluster_secret.encode(), raw_payload.encode(), hashlib.sha256).hexdigest()
+                if secrets.compare_digest(sig, expected):
+                    return True, "HMAC signature valid."
+            except Exception as exc:
+                return False, f"Signature verification error: {exc}"
+
+        auth_hdr = request.headers.get("authorization", "")
+        if auth_hdr.lower().startswith("bearer ") and secrets.compare_digest(auth_hdr[7:].strip(), cluster_secret):
+            return True, "Bearer valid."
+
+        if auth_token:
+            if auth_hdr.lower().startswith("bearer ") and secrets.compare_digest(auth_hdr[7:].strip(), auth_token):
+                return True, "Primary token valid."
+            cookie_tok = request.cookies.get("lumi_auth", "")
+            if cookie_tok and secrets.compare_digest(cookie_tok, auth_token):
+                return True, "Cookie valid."
+
+        return False, "Unauthorized: Valid HMAC signature (X-LUMI-Signature) or cluster secret required."
+
+    @app.get("/api/security/posture")
+    def security_posture():
+        sentinel = get_security_sentinel()
+        return sentinel.get_security_posture()
+
     @app.get("/api/cluster/status")
     def cluster_status():
         from mesh.cluster import get_cluster_mesh
@@ -903,19 +943,31 @@ def create_app(orchestrator) -> FastAPI:
         return mesh.get_cluster_status()
 
     @app.post("/api/cluster/dispatch")
-    def cluster_dispatch(p: ClusterDispatchIn):
+    def cluster_dispatch(p: ClusterDispatchIn, request: Request):
+        payload_data = p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        ok, reason = _verify_cluster_auth(request, payload_data)
+        if not ok:
+            return JSONResponse(status_code=401, content={"error": reason})
         from mesh.cluster import get_cluster_mesh
         mesh = getattr(orchestrator, "cluster", None) or get_cluster_mesh(config=orchestrator.config if orchestrator else None)
         return mesh.dispatch_task(task_type=p.task_type, payload=p.payload, target_node=p.target_node)
 
     @app.post("/api/cluster/sync")
-    def cluster_sync(p: ClusterSyncIn):
+    def cluster_sync(p: ClusterSyncIn, request: Request):
+        payload_data = p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        ok, reason = _verify_cluster_auth(request, payload_data)
+        if not ok:
+            return JSONResponse(status_code=401, content={"error": reason})
         from mesh.cluster import get_cluster_mesh
         mesh = getattr(orchestrator, "cluster", None) or get_cluster_mesh(config=orchestrator.config if orchestrator else None)
         return mesh.sync_state(context_data=p.context_data, destination_node=p.destination_node)
 
     @app.post("/api/cluster/register")
-    def cluster_register(p: ClusterRegisterIn):
+    def cluster_register(p: ClusterRegisterIn, request: Request):
+        payload_data = p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        ok, reason = _verify_cluster_auth(request, payload_data)
+        if not ok:
+            return JSONResponse(status_code=401, content={"error": reason})
         from mesh.cluster import get_cluster_mesh
         mesh = getattr(orchestrator, "cluster", None) or get_cluster_mesh(config=orchestrator.config if orchestrator else None)
         return mesh.register_node(
@@ -928,13 +980,21 @@ def create_app(orchestrator) -> FastAPI:
         )
 
     @app.post("/api/cluster/heartbeat")
-    def cluster_heartbeat(p: ClusterHeartbeatIn):
+    def cluster_heartbeat(p: ClusterHeartbeatIn, request: Request):
+        payload_data = p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        ok, reason = _verify_cluster_auth(request, payload_data)
+        if not ok:
+            return JSONResponse(status_code=401, content={"error": reason})
         from mesh.cluster import get_cluster_mesh
         mesh = getattr(orchestrator, "cluster", None) or get_cluster_mesh(config=orchestrator.config if orchestrator else None)
         return mesh.record_heartbeat(node_id=p.node_id, telemetry=p.telemetry)
 
     @app.post("/api/cluster/execute")
-    def cluster_execute(p: ClusterExecuteIn):
+    def cluster_execute(p: ClusterExecuteIn, request: Request):
+        payload_data = p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        ok, reason = _verify_cluster_auth(request, payload_data)
+        if not ok:
+            return JSONResponse(status_code=401, content={"error": reason})
         return {
             "dispatch_id": p.dispatch_id,
             "status": "completed",
