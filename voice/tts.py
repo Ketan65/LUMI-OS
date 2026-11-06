@@ -106,8 +106,10 @@ def _tts_cfg() -> dict:
 def _kokoro_paths() -> tuple[Path, Path]:
     cfg = _tts_cfg()
     base = Path.home() / ".cache" / "kokoro-onnx"
-    model = Path(cfg.get("kokoro_model") or base / "kokoro-v1.1-zh.int8.onnx")
-    voices = Path(cfg.get("kokoro_voices") or base / "voices-v1.1-zh.bin")
+    model_raw = cfg.get("kokoro_model") or base / "kokoro-v1.1-zh.int8.onnx"
+    voices_raw = cfg.get("kokoro_voices") or base / "voices-v1.1-zh.bin"
+    model = Path(model_raw).expanduser().resolve()
+    voices = Path(voices_raw).expanduser().resolve()
     return model, voices
 
 
@@ -148,10 +150,10 @@ def _pick_kokoro_voice(engine, text: str) -> str:
         # Hindi voice is pack me nahi (v1.1-zh = en+zh only) — model Hindi jaanta
         # nahi, garbled awaaz se better hai chain ko pyttsx3 pe girna (purana behavior)
         raise RuntimeError("kokoro_no_hindi_voice")
-    default = cfg.get("kokoro_voice") or "af_heart"
+    default = cfg.get("kokoro_voice") or "af_sol"
     if default != "auto" and default in available:
         return str(default)
-    for cand in ("af_heart", "af_bella", "af_sky"):
+    for cand in ("af_sol", "af_maple", "bf_vale", "af_heart", "af_bella", "af_sky"):
         if cand in available:
             return cand
     return sorted(available)[0]
