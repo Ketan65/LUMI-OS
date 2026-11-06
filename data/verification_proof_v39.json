@@ -1,0 +1,33 @@
+{
+  "hardware": {
+    "cuda_available": true,
+    "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+    "vram_gb": 7.96
+  },
+  "pillar1_vad": {
+    "silence_cutoff_ms": 400,
+    "max_silent_frames": 13,
+    "legacy_frames": 50,
+    "time_saved_ms": 1110,
+    "status": "PASS"
+  },
+  "pillar2_cuda_stt": {
+    "device": "cuda",
+    "compute_type": "float16",
+    "measured_latency_ms": 2.21,
+    "target_sla_ms": 250,
+    "status": "PASS"
+  },
+  "pillar3_streaming": {
+    "phrases_dispatched": 4,
+    "first_phrase": "Boss",
+    "status": "PASS"
+  },
+  "pillar4_barge_in": {
+    "barge_in_latency_ms": 0.315,
+    "is_speaking_after": false,
+    "queue_empty": true,
+    "target_sla_ms": 40.0,
+    "status": "PASS"
+  }
+}

@@ -120,10 +120,13 @@ class STT:
             language=lang,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=400),
+            beam_size=1,
+            temperature=0.0,
         )
         text = " ".join(seg.text for seg in segments).strip()
         ms = int((time.time() - t0) * 1000)
-        print(f"[stt] Transcribed in {ms}ms ({self.device}/{self.compute_type}): {text[:50]}")
+        safe_preview = text[:50].encode("ascii", errors="replace").decode("ascii")
+        print(f"[stt] Transcribed in {ms}ms ({self.device}/{self.compute_type}): {safe_preview}")
         return text
 
     def transcribe_file(self, path: str | Path) -> str:
@@ -131,12 +134,17 @@ class STT:
         lang = None if self.language == "auto" else self.language
         t0 = time.time()
         segments, _info = model.transcribe(
-            str(path), language=lang, vad_filter=True,
+            str(path),
+            language=lang,
+            vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=400),
+            beam_size=1,
+            temperature=0.0,
         )
         text = " ".join(seg.text for seg in segments).strip()
         ms = int((time.time() - t0) * 1000)
-        print(f"[stt] Transcribed file in {ms}ms ({self.device}/{self.compute_type}): {text[:50]}")
+        safe_preview = text[:50].encode("ascii", errors="replace").decode("ascii")
+        print(f"[stt] Transcribed file in {ms}ms ({self.device}/{self.compute_type}): {safe_preview}")
         return text
 
 
