@@ -175,6 +175,21 @@ class CapitalEngine:
 
         self.registry.register(
             Tool(
+                name="scan_algora_bounties",
+                description="Scans GitHub for funded Algora bounties, ranks by competition level, and updates the local bounty radar.",
+                params_schema={
+                    "type": "object",
+                    "properties": {
+                        "max_results": {"type": "integer", "description": "Maximum issues to evaluate (default: 20)."},
+                    },
+                },
+                handler=lambda max_results=20: self.scan_algora_radar(max_results=max_results),
+                risk="read",
+            )
+        )
+
+        self.registry.register(
+            Tool(
                 name="forge_micro_saas",
                 description="Synthesizes a complete, deployable niche Micro-SaaS backend with FastAPI, Stripe webhook billing, and Dockerfile ready for revenue generation.",
                 params_schema={
@@ -565,6 +580,26 @@ All functions are verified and ready for production integration.
                 }
         except Exception as e:
             logger.error("Failed to submit bounty PR: %s", e)
+            return {"status": "error", "error": str(e)}
+
+    def scan_algora_radar(self, max_results: int = 20) -> dict[str, Any]:
+        """Scans GitHub for active Algora bounties and updates data/capital/bounties_radar.json."""
+        try:
+            from core.algora_hunter import AlgoraHunterDaemon
+            daemon = AlgoraHunterDaemon(workspace_root=self.workspace_root)
+            candidates = daemon.scan_fresh_bounties(max_results=max_results)
+            return {
+                "status": "success",
+                "total_candidates": len(candidates),
+                "fresh_targets": [c.issue_url for c in candidates if c.status == "FRESH_TARGET"],
+                "radar_file": str(daemon.radar_file),
+                "top_rewards": [
+                    {"repo": c.repo, "title": c.title, "reward_usd": c.reward_usd, "url": c.issue_url}
+                    for c in candidates[:5]
+                ],
+            }
+        except Exception as e:
+            logger.error("Algora radar scan failed: %s", e)
             return {"status": "error", "error": str(e)}
 
     def forge_micro_saas(
