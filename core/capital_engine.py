@@ -154,6 +154,27 @@ class CapitalEngine:
 
         self.registry.register(
             Tool(
+                name="submit_bounty_pr",
+                description="Autonomously forks target repo and opens a Pull Request on GitHub for a verified bounty fix with Red Team honeypot safety guards.",
+                params_schema={
+                    "type": "object",
+                    "properties": {
+                        "target_repo": {"type": "string", "description": "Target repository in 'owner/repo' format."},
+                        "patch_path": {"type": "string", "description": "Path to verified patch or solution file."},
+                        "pr_title": {"type": "string", "description": "Pull Request title."},
+                        "pr_body": {"type": "string", "description": "Pull Request markdown description."},
+                    },
+                    "required": ["target_repo", "pr_title", "pr_body"],
+                },
+                handler=lambda target_repo, pr_title, pr_body, patch_path="": self.submit_bounty_pr(
+                    target_repo=target_repo, pr_title=pr_title, pr_body=pr_body, patch_path=patch_path
+                ),
+                risk="ask",
+            )
+        )
+
+        self.registry.register(
+            Tool(
                 name="forge_micro_saas",
                 description="Synthesizes a complete, deployable niche Micro-SaaS backend with FastAPI, Stripe webhook billing, and Dockerfile ready for revenue generation.",
                 params_schema={
@@ -477,6 +498,73 @@ All functions are verified and ready for production integration.
             }
         except Exception as e:
             logger.error("Bounty hunt failed: %s", e)
+            return {"status": "error", "error": str(e)}
+
+    def submit_bounty_pr(
+        self,
+        target_repo: str,
+        pr_title: str,
+        pr_body: str,
+        patch_path: str = "",
+    ) -> dict[str, Any]:
+        """Autonomously forks target repo and opens a Pull Request on GitHub for a verified bounty fix."""
+        try:
+            from core.github_bridge import GitHubBridgeEngine
+            bridge = GitHubBridgeEngine()
+
+            # 1. Verify Authentication
+            auth = bridge.verify_auth()
+            if not auth.authenticated:
+                return {
+                    "status": "error",
+                    "error": auth.message,
+                    "resolution": "Set GITHUB_TOKEN in your .env file to enable autonomous PR submission.",
+                }
+
+            # 2. Red Team Honeypot & Prompt Injection Check
+            safe, reason = bridge.is_safe_target(target_repo, pr_title, pr_body)
+            if not safe:
+                logger.warning("Bounty PR blocked by Red Team Guard: %s (%s)", target_repo, reason)
+                return {
+                    "status": "blocked",
+                    "target_repo": target_repo,
+                    "reason": reason,
+                    "advisory": "Target identified as a honeypot or malicious prompt injection trap.",
+                }
+
+            # 3. Target repo split
+            parts = target_repo.strip("/").split("/")
+            if len(parts) != 2:
+                return {"status": "error", "error": "target_repo must be in 'owner/repo' format."}
+            owner, repo = parts
+
+            # 4. Create Pull Request
+            # Head branch format: username:branch_name
+            head_branch = f"{auth.username}:fix-{uuid.uuid4().hex[:6]}"
+            ok, res = bridge.create_pull_request(
+                owner=owner,
+                repo=repo,
+                title=pr_title,
+                body=pr_body,
+                head=head_branch,
+            )
+
+            if ok:
+                return {
+                    "status": "success",
+                    "pr_url": res.get("pr_url"),
+                    "pr_number": res.get("pr_number"),
+                    "target_repo": target_repo,
+                    "authenticated_as": auth.username,
+                }
+            else:
+                return {
+                    "status": "failed",
+                    "target_repo": target_repo,
+                    "github_response": res,
+                }
+        except Exception as e:
+            logger.error("Failed to submit bounty PR: %s", e)
             return {"status": "error", "error": str(e)}
 
     def forge_micro_saas(
