@@ -274,6 +274,10 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     from core.fast_cashflow import get_fast_cashflow_dispatcher
     orchestrator.fast_cashflow = get_fast_cashflow_dispatcher(registry=registry)
 
+    # Phase 42: Workstation Resource & Performance Auto-Optimizer
+    from core.workstation_optimizer import get_workstation_optimizer
+    orchestrator.workstation_optimizer = get_workstation_optimizer(registry=registry)
+
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"

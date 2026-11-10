@@ -1776,6 +1776,19 @@ def create_app(orchestrator) -> FastAPI:
         mrr = float(b.get("projected_mrr", 450.0))
         return ce.forge_micro_saas(product_name=name, niche=niche, projected_mrr=mrr)
 
+    # Phase 42: Workstation Performance & Memory Endpoints
+    @app.post("/api/system/optimize")
+    def system_optimize() -> dict:
+        from core.workstation_optimizer import get_workstation_optimizer
+        opt = getattr(orchestrator, "workstation_optimizer", None) or get_workstation_optimizer()
+        return opt.optimize_all()
+
+    @app.get("/api/system/vitals")
+    def system_vitals() -> dict:
+        from core.workstation_optimizer import get_workstation_optimizer
+        opt = getattr(orchestrator, "workstation_optimizer", None) or get_workstation_optimizer()
+        return opt.get_vitals()
+
     return app
 
 

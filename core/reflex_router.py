@@ -146,14 +146,32 @@ DOMAIN_CLUSTERS: dict[str, dict[str, set[str]]] = {
             "cluster_dispatch_task", "register_project", "use_project", "list_projects",
         },
     },
+    "capital_revenue": {
+        "keywords": {
+            "capital", "revenue", "bounty", "bounties", "gig", "gigs", "freelance",
+            "contract", "pitch", "proposal", "invoice", "client", "paisa", "money",
+            "cash", "earn", "upwork", "fiverr", "contra", "escrow", "saas", "mrr",
+            "micro-saas", "digital", "product", "quant", "alpha", "trade", "backtest",
+            "arbitrage", "portfolio", "harvest",
+        },
+        "tools": {
+            "get_capital_overview", "bid_and_build_gig", "hunt_open_source_bounties",
+            "forge_micro_saas", "scan_quant_alpha", "fetch_live_market_bounties",
+            "solve_bounty_and_generate_pr", "pitch_and_build_freelance_gig",
+            "package_commercial_digital_product", "run_quant_backtest",
+            "get_paper_portfolio", "execute_paper_trade", "generate_client_invoice",
+            "record_finance_transaction", "get_financial_summary",
+        },
+    },
     "workstation_iot": {
         "keywords": {
             "clean", "cleanup", "temp", "cache", "disk", "space", "storage", "ram",
             "memory", "health", "optimize", "workstation", "guardian", "nexus",
             "iot", "lan", "network", "webhook", "focus", "pomodoro", "reminder",
-            "schedule", "alarm", "briefing",
+            "schedule", "alarm", "briefing", "vitals", "speed", "boost", "gc",
         },
         "tools": {
+            "optimize_workstation_performance", "get_workstation_vitals",
             "optimize_workstation_health", "scan_large_files", "clean_workspace",
             "workstation_focus", "scan_lan_devices", "iot_webhook",
             "add_reminder", "list_reminders", "delete_reminder", "morning_briefing",
@@ -200,12 +218,52 @@ _RE_TIME_DATE = re.compile(
 )
 
 _RE_PING_STATUS = re.compile(
-    r"^\s*(?:hey\s+lumi|lumi|jarvis)?[\s,!.:-]*"
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss)?[\s,!.:-]*"
     r"(?:"
-    r"ping|status|are\s+you\s+(?:there|online|awake|ready)|"
-    r"systems?\s+online|all\s+systems?\s+check|"
+    r"ping|status|system\s+status|system\s+health|are\s+you\s+(?:there|online|awake|ready)|"
+    r"systems?\s+online|all\s+systems?\s+check|health\s+check|"
     r"zinda\s+ho(?:\s+kya)?|online\s+ho(?:\s+kya)?|ready\s+ho(?:\s+kya)?|"
-    r"lumi\s+status|jarvis\s+status|wake\s+up"
+    r"lumi\s+status|jarvis\s+status|wake\s+up|sab\s+theek\s+hai"
+    r")[\s?!.]*$",
+    re.IGNORECASE,
+)
+
+_RE_GREETING = re.compile(
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss|bhai)?[\s,!.:-]*"
+    r"(?:"
+    r"hi|hello|hey|namaste|pranam|kya\s+haal\s+hai|kaise\s+ho(?:\s+aap)?|"
+    r"kya\s+chal\s+raha\s+hai|sab\s+badhiya|sup|yo|"
+    r"good\s+(?:morning|afternoon|evening|night)|shubh\s+(?:prabhat|ratri)"
+    r")"
+    r"(?:[\s,!.:-]+(?:lumi|jarvis|boss|bhai|sir))?"
+    r"[\s?!.]*$",
+    re.IGNORECASE,
+)
+
+_RE_IDENTITY = re.compile(
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss)?[\s,!.:-]*"
+    r"(?:"
+    r"who\s+are\s+you|what\s+are\s+you|tum\s+kaun\s+ho|apna\s+intro(?:\s+do)?|"
+    r"introduce\s+yourself|tell\s+me\s+about\s+yourself"
+    r")[\s?!.]*$",
+    re.IGNORECASE,
+)
+
+_RE_MEMORY_OPTIMIZE = re.compile(
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss)?[\s,!.:-]*"
+    r"(?:"
+    r"optimize\s+(?:ram|memory|system|workstation|performance)|"
+    r"clean\s+(?:ram|memory)|free\s+(?:ram|memory)|clear\s+memory|"
+    r"boost\s+(?:performance|speed)|ram\s+optimize\s+karo"
+    r")[\s?!.]*$",
+    re.IGNORECASE,
+)
+
+_RE_CAPITAL_CHECK = re.compile(
+    r"^\s*(?:hey\s+lumi|lumi|jarvis|boss)?[\s,!.:-]*"
+    r"(?:"
+    r"capital\s+overview|revenue\s+status|money\s+pipeline|active\s+pipeline|"
+    r"kitna\s+paisa(?:\s+hai)?|paisa\s+status|show\s+capital"
     r")[\s?!.]*$",
     re.IGNORECASE,
 )
@@ -314,10 +372,6 @@ class ReflexRouter:
         if not clean or len(clean) > 95 or clean.startswith("/"):
             return None
 
-        # Never intercept multi-sentence or complex engineering instructions
-        if _COMPLEX_TASK_GUARD.search(clean):
-            return None
-
         ctx = context or {}
 
         # A) Time / Date check
@@ -388,6 +442,55 @@ class ReflexRouter:
                 "Aap `/harvest` chala ke instant nayi skill seekhne ko bol sakte ho, ya `/heal` se kisi bhi file ko auto-repair karwa sakte ho!"
             )
             return self._record_reflex("evolution_status", resp, t0)
+
+        # H) Casual Greeting & Persona
+        if _RE_GREETING.match(clean):
+            resp = (
+                "Namaste Boss! LUMI fully active aur peak performance par primed hai. "
+                "Bataiye, aaj kya automate, optimize ya execute karein?"
+            )
+            return self._record_reflex("greeting", resp, t0)
+
+        # I) Sovereign Identity
+        if _RE_IDENTITY.match(clean):
+            resp = (
+                "Main hoon LUMI — aapka autonomous sovereign AI Operating System. "
+                "Sub-millisecond reflex router, GPU Whisper voice pipeline, multi-agent SWARM, "
+                "institutional quant trading, aur real-world capital harvester se fully equipped."
+            )
+            return self._record_reflex("identity", resp, t0)
+
+        # J) Hardware & RAM Optimization
+        if _RE_MEMORY_OPTIMIZE.match(clean):
+            from core.workstation_optimizer import get_workstation_optimizer
+            opt = get_workstation_optimizer()
+            rep = opt.optimize_all()
+            resp = (
+                f"Boss, workstation memory optimize kar di gayi hai! "
+                f"RAM load ab **{rep['ram_usage_pct']}%** par hai (freed {rep['ram_freed_mb']:.1f} MB), "
+                f"SQLite databases ({len(rep['sqlite_vacuumed'])}) vacuumed, "
+                f"aur runtime execution latency **{rep['elapsed_ms']:.1f}ms** me drop ho gayi."
+            )
+            return self._record_reflex("optimize_memory", resp, t0)
+
+        # K) Real-Time Capital & Revenue Overview
+        if _RE_CAPITAL_CHECK.match(clean):
+            from core.capital_engine import get_capital_engine
+            ce = get_capital_engine()
+            ov = ce.get_capital_overview()
+            resp = (
+                f"Boss, live capital telemetry:\n"
+                f"• **Realized Revenue:** ${ov['realized_revenue_total']:,.2f} USD\n"
+                f"• **Active Pending Pipeline:** ${ov['pending_pipeline_usd']:,.2f} USD\n"
+                f"• **Bounties Identified:** ${ov['breakdown']['open_source_bounties_usd']:,.2f} USD\n"
+                f"• **Quant Portfolio NAV:** ${ov['breakdown']['quant_portfolio_nav_usd']:,.2f} USD\n"
+                f"Fast cashflow actions ready to claim."
+            )
+            return self._record_reflex("capital_check", resp, t0)
+
+        # Fallback guard: general complex multi-step instructions bypass reflex
+        if _COMPLEX_TASK_GUARD.search(clean):
+            return None
 
         return None
 

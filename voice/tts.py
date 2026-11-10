@@ -172,11 +172,15 @@ def _write_wav(path: str | Path, audio, sample_rate: int) -> None:
         w.writeframes(pcm.tobytes())
 
 
+_KOKORO_AUDIO_CACHE: dict[tuple[str, str, float, str], tuple[Any, int]] = {}
+
+
 def synthesize_kokoro(clean_text: str, out_path: str | Path) -> str:
     """Offline NEURAL synthesis — Kokoro-82M on local CPU, zero internet.
 
     Voice pick: Devanagari text → Hindi voice (female_pravda/hf_*), Latin → af_heart.
     Fail hoti hai to chain caller pyttsx3 pe girati hai (graceful).
+    Features high-speed in-memory audio caching for frequent vocal acknowledgments.
     """
     cfg = _tts_cfg()
     k = _get_kokoro()
@@ -184,9 +188,24 @@ def synthesize_kokoro(clean_text: str, out_path: str | Path) -> str:
     lang = "hi" if _is_devanagari(clean_text) else "en-us"
     speed = float(cfg.get("kokoro_speed") or 1.0)
     t0 = time.time()
+
+    cache_key = (clean_text.strip().lower(), voice, speed, lang)
+    if cache_key in _KOKORO_AUDIO_CACHE:
+        audio, sr = _KOKORO_AUDIO_CACHE[cache_key]
+        _write_wav(out_path, audio, sr)
+        ms = int((time.time() - t0) * 1000)
+        _log(f"synth kokoro CACHE HIT voice={voice} lang={lang} ms={ms} chars={len(clean_text)}")
+        print(f"[tts] kokoro audio CACHE HIT in {ms}ms ({voice}/{lang})")
+        return str(out_path)
+
     audio, sr = k.create(clean_text, voice, speed=speed, lang=lang)
     if audio is None or len(audio) == 0:
         raise RuntimeError("kokoro_empty_audio")
+
+    # Cache short acknowledgments
+    if len(clean_text) <= 120 and len(_KOKORO_AUDIO_CACHE) < 100:
+        _KOKORO_AUDIO_CACHE[cache_key] = (audio, sr)
+
     _write_wav(out_path, audio, sr)
     ms = int((time.time() - t0) * 1000)
     _log(f"synth kokoro ok voice={voice} lang={lang} ms={ms} chars={len(clean_text)}")
