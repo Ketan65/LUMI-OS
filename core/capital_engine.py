@@ -332,7 +332,10 @@ class CapitalEngine:
         gig_dir = self.deliverables_dir / gig_id
         gig_dir.mkdir(parents=True, exist_ok=True)
 
-        clean_slug = "".join(c if c.isalnum() else "_" for c in title.lower()).strip("_")
+        clean_slug = "".join(c if c.isalnum() else "_" for c in title.lower()).strip("_") or "client_service"
+        if clean_slug[0].isdigit():
+            clean_slug = f"svc_{clean_slug}"
+        class_name = f"{clean_slug.title().replace('_', '')}Service"
 
         # 1. Generate core deliverable code
         code_file = gig_dir / f"{clean_slug}.py"
@@ -348,7 +351,7 @@ from typing import Any, Dict
 
 logger = logging.getLogger("{clean_slug}")
 
-class {clean_slug.title().replace("_", "")}Service:
+class {class_name}:
     """Production-ready commercial implementation satisfying client brief:
     '{brief}'
     """
@@ -384,15 +387,15 @@ Ensures 100% acceptance criteria pass before client handover.
 """
 
 import pytest
-from {clean_slug} import {clean_slug.title().replace("_", "")}Service
+from {clean_slug} import {class_name}
 
 def test_service_initialization():
-    service = {clean_slug.title().replace("_", "")}Service()
+    service = {class_name}()
     assert service.status == "operational"
     assert service.health_check()["status"] == "healthy"
 
 def test_service_payload_execution():
-    service = {clean_slug.title().replace("_", "")}Service()
+    service = {class_name}()
     payload = {{"client": "{client_name}", "action": "benchmark", "value": 100}}
     res = service.execute_payload(payload)
     assert res["status"] == "success"
@@ -400,7 +403,7 @@ def test_service_payload_execution():
     assert res["processed_items"] == 3
 
 def test_service_empty_payload_validation():
-    service = {clean_slug.title().replace("_", "")}Service()
+    service = {class_name}()
     res = service.execute_payload({{}})
     assert res["status"] == "error"
 '''
