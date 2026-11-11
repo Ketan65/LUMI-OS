@@ -17,6 +17,12 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except Exception:
+    pass
+
 from brain.cloud_adapter import CloudBrain, NVIDIABrain
 from brain.ollama_adapter import (OllamaBrain, load_config, set_facts,
                                   set_lessons, set_skills)
@@ -278,6 +284,14 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     from core.workstation_optimizer import get_workstation_optimizer
     orchestrator.workstation_optimizer = get_workstation_optimizer(registry=registry)
 
+    # Phase 44: Live Income Autopilot Daemon (Real Freelance Leads + Algora Radar + Commercial Bundles)
+    from core.income_autopilot import get_income_autopilot
+    autopilot = get_income_autopilot(registry=registry)
+    autopilot.start_background_daemon(interval_sec=1800.0)
+    import atexit
+    atexit.register(autopilot.stop)
+    orchestrator.income_autopilot = autopilot
+
     names = ", ".join(t.name for t in registry.list_all())
     print(f"[memory] {memory.count_messages()} messages, journal={journal_mode}")
     print(f"[evolution] {'on' if (config.get('evolution') or {}).get('enabled') else 'off'}"
@@ -381,7 +395,8 @@ def main() -> None:
         time.sleep(1.0)
         run_hud(orchestrator, port=getattr(orchestrator, "web_port", 8765) or 8765)
     elif web_mode:
-        run_web(orchestrator)
+        auto_open = "--no-open" not in sys.argv[1:]
+        run_web(orchestrator, auto_open=auto_open)
     else:
         cli.run(orchestrator)               # default = CLI (as before)
 

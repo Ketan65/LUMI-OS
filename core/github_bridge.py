@@ -34,6 +34,14 @@ _HONEYPOT_KEYWORDS = [
     "human_verified_signature",
     "send eth to verify",
     "airdrop-claim",
+    "bounty-plaza",
+    "ies-boilerroom",
+    "oss-bot-trap",
+    "automated ci regression mirror",
+    "manual pull requests from human engineers are not reviewed",
+    "toyol-digital",
+    "bounty scout",
+    "dependency dashboard",
 ]
 
 _PROMPT_INJECTION_REGEXES = [

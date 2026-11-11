@@ -152,7 +152,8 @@ DOMAIN_CLUSTERS: dict[str, dict[str, set[str]]] = {
             "contract", "pitch", "proposal", "invoice", "client", "paisa", "money",
             "cash", "earn", "upwork", "fiverr", "contra", "escrow", "saas", "mrr",
             "micro-saas", "digital", "product", "quant", "alpha", "trade", "backtest",
-            "arbitrage", "portfolio", "harvest",
+            "arbitrage", "portfolio", "harvest", "income", "autopilot", "leads",
+            "kamao", "kamai", "usd",
         },
         "tools": {
             "get_capital_overview", "bid_and_build_gig", "hunt_open_source_bounties",
@@ -161,6 +162,8 @@ DOMAIN_CLUSTERS: dict[str, dict[str, set[str]]] = {
             "package_commercial_digital_product", "run_quant_backtest",
             "get_paper_portfolio", "execute_paper_trade", "generate_client_invoice",
             "record_finance_transaction", "get_financial_summary",
+            "run_income_autopilot", "get_live_income_leads",
+            "scan_algora_bounties", "submit_bounty_pr",
         },
     },
     "workstation_iot": {

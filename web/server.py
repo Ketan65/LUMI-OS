@@ -1658,7 +1658,7 @@ def create_app(orchestrator) -> FastAPI:
             return JSONResponse(status_code=400, content={"detail": "goal required"})
         tool = orchestrator.registry.get("dispatch_background_mission") if getattr(orchestrator, "registry", None) else None
         if tool:
-            return {"ok": True, "summary": tool.handler(mission_goal=goal, mission_type=kind)}
+            return {"ok": True, "summary": tool.handler(mission_goal=goal, mission_kind=kind)}
         res = mq.submit_mission(name=goal[:60], kind=kind, fn=lambda: {"goal": goal, "status": "completed"})
         return {"ok": True, "mission": res}
 
@@ -1775,6 +1775,25 @@ def create_app(orchestrator) -> FastAPI:
         niche = str(b.get("niche", "Automated PDF Analysis API"))
         mrr = float(b.get("projected_mrr", 450.0))
         return ce.forge_micro_saas(product_name=name, niche=niche, projected_mrr=mrr)
+
+    # Phase 44: Live Income Autopilot Endpoints
+    @app.get("/api/capital/autopilot/status")
+    def capital_autopilot_status() -> dict:
+        from core.income_autopilot import get_income_autopilot
+        ap = getattr(orchestrator, "income_autopilot", None) or get_income_autopilot()
+        return ap.get_status_summary()
+
+    @app.post("/api/capital/autopilot/run")
+    def capital_autopilot_run() -> dict:
+        from core.income_autopilot import get_income_autopilot
+        ap = getattr(orchestrator, "income_autopilot", None) or get_income_autopilot()
+        return ap.run_cycle(fetch_bounties=True, fetch_leads=True, build_product=True)
+
+    @app.get("/api/capital/algora/scan")
+    def capital_algora_scan(max_results: int = 15) -> dict:
+        from core.capital_engine import get_capital_engine
+        ce = getattr(orchestrator, "capital_engine", None) or get_capital_engine()
+        return ce.scan_algora_radar(max_results=max_results)
 
     # Phase 42: Workstation Performance & Memory Endpoints
     @app.post("/api/system/optimize")

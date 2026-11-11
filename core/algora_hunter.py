@@ -59,8 +59,10 @@ class AlgoraHunterDaemon:
             return []
 
         queries = [
+            'commenter:algora-pbc is:issue is:open comments:<5 sort:created-desc',
             'commenter:algora-pbc is:issue is:open sort:updated-desc',
-            'is:issue is:open "console.algora.io" sort:updated-desc',
+            'is:issue is:open label:bounty comments:<4 stars:>25 sort:created-desc',
+            'is:issue is:open "console.algora.io" -repo:zhangjiayang6835-cyber/bounty-plaza sort:created-desc',
         ]
 
         candidates: List[AlgoraBountyCandidate] = []
