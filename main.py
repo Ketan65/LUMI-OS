@@ -17,6 +17,10 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+import warnings
+warnings.filterwarnings("ignore", category=ResourceWarning)
+warnings.filterwarnings("ignore", message=".*duckduckgo_search.*")
+
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent / ".env")

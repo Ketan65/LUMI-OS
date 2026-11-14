@@ -110,15 +110,25 @@ class WorkstationOptimizer:
         """Executes full multi-tier hardware optimization and working set compaction."""
         t0 = time.perf_counter()
         proc = psutil.Process(os.getpid())
+        sys_mem_before_mb = psutil.virtual_memory().used / (1024**2)
         ram_before_mb = proc.memory_info().rss / (1024**2)
 
         # 1. Python GC cycle collection
         collected_objs = gc.collect(2)
 
-        # 2. Windows Working Set purge
+        # 2. Windows Working Set purge (current process + bloated >100MB user processes)
         if os.name == "nt":
             try:
                 ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
+                for p in psutil.process_iter(["pid", "memory_info"]):
+                    try:
+                        if p.info["memory_info"].rss > 100 * 1024 * 1024:
+                            h = ctypes.windll.kernel32.OpenProcess(0x0500, False, p.info["pid"])
+                            if h:
+                                ctypes.windll.psapi.EmptyWorkingSet(h)
+                                ctypes.windll.kernel32.CloseHandle(h)
+                    except Exception:
+                        continue
             except Exception as e:
                 logger.debug("EmptyWorkingSet call skipped: %s", e)
 
@@ -152,8 +162,9 @@ class WorkstationOptimizer:
                     pass
 
         ram_after_mb = proc.memory_info().rss / (1024**2)
-        ram_freed = max(0.0, ram_before_mb - ram_after_mb)
         mem = psutil.virtual_memory()
+        sys_mem_after_mb = mem.used / (1024**2)
+        ram_freed = max(0.0, ram_before_mb - ram_after_mb, sys_mem_before_mb - sys_mem_after_mb)
         cpu = psutil.cpu_percent(interval=0.1)
         elapsed_ms = (time.perf_counter() - t0) * 1000
 

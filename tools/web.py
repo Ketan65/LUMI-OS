@@ -72,19 +72,22 @@ def web_search(query: str, max_results: int = 5) -> str:
         max_n = 5
 
     try:
-        from duckduckgo_search import DDGS
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from duckduckgo_search import DDGS
 
-        results: list[dict[str, Any]] = []
-        # Try backend='lite' first as it avoids standard HTML/API rate limits
-        for backend in ("lite", "api", "html"):
-            try:
-                with DDGS() as ddgs:
-                    raw = list(ddgs.text(query, backend=backend, max_results=max_n))
-                    if raw:
-                        results = raw
-                        break
-            except Exception:
-                continue
+            results: list[dict[str, Any]] = []
+            # Try backend='lite' first as it avoids standard HTML/API rate limits
+            for backend in ("lite", "auto", "html"):
+                try:
+                    with DDGS() as ddgs:
+                        raw = list(ddgs.text(query, backend=backend, max_results=max_n))
+                        if raw:
+                            results = raw
+                            break
+                except Exception:
+                    continue
 
         if not results:
             return f"No search results found for: '{query}'"

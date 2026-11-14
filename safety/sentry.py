@@ -117,6 +117,17 @@ class AmbieSentry:
             if mem.percent >= self.ram_threshold:
                 if now - self._last_ram_alert > 3600:  # 60m cooldown (prevents console spam)
                     self._last_ram_alert = now
+                    freed_note = ""
+                    try:
+                        from core.workstation_optimizer import get_workstation_optimizer
+                        opt_res = get_workstation_optimizer().optimize_all()
+                        freed_mb = opt_res.get("ram_freed_mb", 0.0)
+                        new_pct = opt_res.get("ram_usage_pct", mem.percent)
+                        if new_pct < self.ram_threshold:
+                            return None
+                        freed_note = f" Auto-trimmed {round(freed_mb, 1)} MB -> {new_pct}%."
+                    except Exception:
+                        pass
                     # Find top RAM consumer
                     top_name, top_mb = "System", 0.0
                     for p in psutil.process_iter(["name", "memory_info"]):
@@ -131,7 +142,7 @@ class AmbieSentry:
                     return (
                         "WARN",
                         "ram_spike",
-                        f"⚡ RAM load {mem.percent}% par pahunch gaya hai. Top consumer: {top_name} ({round(top_mb, 1)} MB).",
+                        f"⚡ RAM load {mem.percent}% par pahunch gaya hai. Top consumer: {top_name} ({round(top_mb, 1)} MB).{freed_note}",
                     )
         except Exception:
             pass
