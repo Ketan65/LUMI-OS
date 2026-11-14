@@ -103,7 +103,7 @@ class LumiScheduler:
 
         try:
             import psutil
-            cpu = psutil.cpu_percent(interval=0.1)
+            cpu = psutil.cpu_percent(interval=None)
             ram = psutil.virtual_memory().percent
             lines.append(f"- Hardware: CPU {cpu}%, RAM {ram}%")
             batt = psutil.sensors_battery()

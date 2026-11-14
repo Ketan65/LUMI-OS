@@ -169,7 +169,7 @@ def system_control(action: str, value: str = "") -> str:
         try:
             import platform
             import psutil
-            cpu = psutil.cpu_percent(interval=0.1)
+            cpu = psutil.cpu_percent(interval=None)
             vm = psutil.virtual_memory()
             ram_used_gb = round((vm.total - vm.available) / (1024**3), 1)
             ram_total_gb = round(vm.total / (1024**3), 1)

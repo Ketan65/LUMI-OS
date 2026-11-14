@@ -28,7 +28,7 @@ class WorkstationGuardian:
         try:
             import psutil
             mem = psutil.virtual_memory()
-            cpu_pct = psutil.cpu_percent(interval=0.1)
+            cpu_pct = psutil.cpu_percent(interval=None)
 
             procs = []
             for p in psutil.process_iter(["pid", "name", "memory_info", "cpu_percent"]):

@@ -83,6 +83,8 @@ class ActiveContextSensor:
         self.workspace_root = Path(workspace_root).resolve()
         self.max_clipboard_chars = max_clipboard_chars
         self._last_snapshot: dict[str, Any] = {}
+        self._git_cache: dict[str, Any] | None = None
+        self._git_cache_ts: float = 0.0
 
     # ------------------------------------------------------------------
     # 1. Foreground Window & Process (Win32 ctypes)
@@ -274,8 +276,12 @@ class ActiveContextSensor:
     # ------------------------------------------------------------------
     # 3. Git / Workspace Status
     # ------------------------------------------------------------------
-    def get_git_status_summary(self) -> dict[str, Any]:
-        """Captures compact `git status -s` & current branch in workspace_root."""
+    def get_git_status_summary(self, force_refresh: bool = False) -> dict[str, Any]:
+        """Captures compact `git status -s` & current branch in workspace_root with 10s TTL cache."""
+        now = time.time()
+        if not force_refresh and self._git_cache and (now - self._git_cache_ts) < 10.0:
+            return dict(self._git_cache)
+
         branch = "unknown"
         modified: list[str] = []
         try:
@@ -301,11 +307,14 @@ class ActiveContextSensor:
         except Exception:
             pass
 
-        return {
+        res = {
             "branch": branch,
             "modified_count": len(modified),
             "modified_files": modified,
         }
+        self._git_cache = res
+        self._git_cache_ts = now
+        return res
 
     # ------------------------------------------------------------------
     # 4. Full Workstation Telemetry Snapshot & Auto-Injection

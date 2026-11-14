@@ -75,6 +75,7 @@ class NexusHub:
     def __init__(self):
         self.current_preset: str = "reset"
         self.last_preset_change: float = time.time()
+        self._scan_cache: dict[str, tuple[float, list[LanDevice]]] = {}
 
     def set_focus_preset(self, preset: str) -> dict[str, Any]:
         """Activates a workstation ambient focus mode."""
@@ -107,8 +108,9 @@ class NexusHub:
             "dnd": cfg["dnd"],
         }
 
-    def scan_lan(self, subnet_prefix: str | None = None, max_hosts: int = 15) -> list[LanDevice]:
-        """Scans the local subnet for active IP addresses and hostnames."""
+    def scan_lan(self, subnet_prefix: str | None = None, max_hosts: int = 15, force_refresh: bool = False) -> list[LanDevice]:
+        """Scans the local subnet for active IP addresses and hostnames in parallel."""
+        from concurrent.futures import ThreadPoolExecutor
         local_ip = get_local_ip()
         if not subnet_prefix or subnet_prefix == "auto":
             # Derive /24 prefix from local IP
@@ -118,53 +120,55 @@ class NexusHub:
             else:
                 subnet_prefix = "192.168.1"
 
-        devices: list[LanDevice] = []
+        now = time.time()
+        cached = self._scan_cache.get(subnet_prefix)
+        if not force_refresh and cached and (now - cached[0]) < 60.0:
+            return list(cached[1])
 
-        # Local host is always alive
-        devices.append(
+        devices: list[LanDevice] = [
             LanDevice(
                 ip=local_ip,
                 hostname=socket.gethostname(),
                 is_alive=True,
                 response_time_ms=0.1,
             )
-        )
+        ]
 
-        # Probe a subset of common IPs (e.g. gateway and nearby IPs)
-        probe_targets = [1, 2, 5, 10, 50, 100, 101, 105, 200, 254]
-        for host_num in probe_targets[:max_hosts]:
-            target_ip = f"{subnet_prefix}.{host_num}"
-            if target_ip == local_ip:
-                continue
+        # Probe a subset of common IPs concurrently
+        probe_targets = [1, 2, 5, 10, 50, 100, 101, 105, 200, 254][:max_hosts]
+        target_ips = [f"{subnet_prefix}.{n}" for n in probe_targets if f"{subnet_prefix}.{n}" != local_ip]
 
+        def _probe_ip(target_ip: str) -> LanDevice | None:
             t0 = time.time()
             alive = False
             try:
-                # Fast socket probe on common ports (80, 443, 8080)
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-                    probe.settimeout(0.08)
-                    res = probe.connect_ex((target_ip, 80))
-                    if res == 0:
+                    probe.settimeout(0.05)
+                    if probe.connect_ex((target_ip, 80)) == 0:
                         alive = True
             except Exception:
                 alive = False
-
+            if not alive:
+                return None
             elapsed = round((time.time() - t0) * 1000, 1)
+            try:
+                name = socket.gethostbyaddr(target_ip)[0]
+            except Exception:
+                name = "Smart Device / Gateway"
+            return LanDevice(
+                ip=target_ip,
+                hostname=name,
+                is_alive=True,
+                response_time_ms=elapsed,
+            )
 
-            if alive:
-                try:
-                    name = socket.gethostbyaddr(target_ip)[0]
-                except Exception:
-                    name = "Smart Device / Gateway"
-                devices.append(
-                    LanDevice(
-                        ip=target_ip,
-                        hostname=name,
-                        is_alive=True,
-                        response_time_ms=elapsed,
-                    )
-                )
+        if target_ips:
+            with ThreadPoolExecutor(max_workers=min(10, len(target_ips))) as pool:
+                for res in pool.map(_probe_ip, target_ips):
+                    if res is not None:
+                        devices.append(res)
 
+        self._scan_cache[subnet_prefix] = (now, devices)
         return devices
 
     def trigger_webhook(self, url: str, payload: dict[str, Any] | None = None, timeout: float = 5.0) -> dict[str, Any]:

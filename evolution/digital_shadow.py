@@ -31,6 +31,8 @@ class DigitalShadow:
         self.journal_dir = Path(journal_dir)
         self.journal_dir.mkdir(parents=True, exist_ok=True)
         self.brain = brain
+        self._standup_cache: dict[str, Any] | None = None
+        self._standup_cache_ts: float = 0.0
 
     def get_recent_git_activity(self, limit: int = 8) -> list[str]:
         """Fetches recent git commit log messages."""
@@ -53,10 +55,10 @@ class DigitalShadow:
         modified_files = []
         cutoff = time.time() - (hours * 3600)
 
+        skip_dirs = {".git", ".venv", "venv", "env", "__pycache__", "node_modules", ".pytest_cache", "models", "data", "backups"}
         for root, dirs, files in os.walk(str(self.repo_root)):
-            # Skip hidden / venv / build directories
-            if any(part.startswith((".", "__pycache__", "venv", "node_modules")) for part in Path(root).parts):
-                continue
+            # Prune heavy/hidden directories in-place so os.walk never descends into them
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in skip_dirs]
             for fname in files:
                 if fname.endswith((".py", ".js", ".html", ".css", ".md", ".json", ".yaml")):
                     fpath = Path(root) / fname
@@ -75,8 +77,12 @@ class DigitalShadow:
         # Sort by modification time descending
         return sorted(modified_files, key=lambda x: x["modified_at"], reverse=True)[:15]
 
-    def generate_standup_digest(self) -> dict[str, Any]:
+    def generate_standup_digest(self, use_llm: bool = True) -> dict[str, Any]:
         """Synthesizes comprehensive daily engineering standup report."""
+        now_epoch = time.time()
+        if not use_llm and self._standup_cache and (now_epoch - self._standup_cache_ts) < 120.0:
+            return dict(self._standup_cache)
+
         t0 = time.perf_counter()
         today_str = datetime.now().strftime("%Y-%m-%d")
         now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -88,7 +94,7 @@ class DigitalShadow:
         files_md = "\n".join([f"- `{f['path']}` *({f['size_bytes']} bytes at {f['modified_at']})*" for f in recent_files]) or "- No files modified in last 24h."
 
         ai_accomplishments = ""
-        if self.brain is not None:
+        if use_llm and self.brain is not None:
             try:
                 prompt = (
                     f"Recent Git Commits:\n{commits_md}\n\n"
@@ -148,7 +154,7 @@ class DigitalShadow:
             f.write(standup_md)
 
         elapsed = round((time.perf_counter() - t0) * 1000, 2)
-        return {
+        result = {
             "date": today_str,
             "journal_file": str(journal_file),
             "commits_logged": len(git_logs),
@@ -156,6 +162,9 @@ class DigitalShadow:
             "standup_markdown": standup_md,
             "elapsed_ms": elapsed,
         }
+        self._standup_cache = result
+        self._standup_cache_ts = now_epoch
+        return result
 
 
 def register_digital_shadow_tools(

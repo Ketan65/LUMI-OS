@@ -279,7 +279,7 @@ class ProactiveSentinel:
         """Telemetry snapshot of foreground window, memory, and latest alerts."""
         active_win = self.get_active_window_title()
         ram = psutil.virtual_memory()
-        cpu = psutil.cpu_percent(interval=0.1)
+        cpu = psutil.cpu_percent(interval=None)
         pending = self.get_pending_alerts(limit=3)
 
         return {

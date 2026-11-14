@@ -706,28 +706,44 @@ def create_app(orchestrator) -> FastAPI:
         }
 
     @app.get("/api/web/tech-briefing")
-    def get_tech_briefing():
+    def get_tech_briefing(refresh: bool = False):
         from core.web_operator import WebOperator
-        op = getattr(orchestrator, "web_operator", None) or WebOperator(brain=orchestrator.brain)
-        return {"briefing": op.fetch_tech_briefing()}
+        op = getattr(orchestrator, "web_operator", None)
+        if op is None:
+            op = WebOperator(brain=orchestrator.brain if orchestrator else None)
+            if orchestrator is not None:
+                orchestrator.web_operator = op
+        return {"briefing": op.fetch_tech_briefing(force_refresh=refresh)}
 
     @app.get("/api/nexus/status")
     def nexus_status():
         from core.nexus import NexusHub
-        hub = getattr(orchestrator, "nexus", None) or NexusHub()
+        hub = getattr(orchestrator, "nexus", None)
+        if hub is None:
+            hub = NexusHub()
+            if orchestrator is not None:
+                orchestrator.nexus = hub
         return hub.get_status()
 
     @app.post("/api/nexus/focus")
     def nexus_focus(p: FocusIn):
         from core.nexus import NexusHub
-        hub = getattr(orchestrator, "nexus", None) or NexusHub()
+        hub = getattr(orchestrator, "nexus", None)
+        if hub is None:
+            hub = NexusHub()
+            if orchestrator is not None:
+                orchestrator.nexus = hub
         return hub.set_focus_preset(p.preset)
 
     @app.get("/api/nexus/scan")
-    def nexus_scan(subnet: str = "auto"):
+    def nexus_scan(subnet: str = "auto", refresh: bool = False):
         from core.nexus import NexusHub
-        hub = getattr(orchestrator, "nexus", None) or NexusHub()
-        devices = hub.scan_lan(subnet_prefix=subnet)
+        hub = getattr(orchestrator, "nexus", None)
+        if hub is None:
+            hub = NexusHub()
+            if orchestrator is not None:
+                orchestrator.nexus = hub
+        devices = hub.scan_lan(subnet_prefix=subnet, force_refresh=refresh)
         return {
             "devices": [
                 {
@@ -1011,10 +1027,14 @@ def create_app(orchestrator) -> FastAPI:
         return researcher.conduct_research(p.topic, max_sources=p.max_sources)
 
     @app.get("/api/shadow/standup")
-    def api_shadow_standup():
+    def api_shadow_standup(use_llm: bool = False):
         from evolution.digital_shadow import DigitalShadow
-        shadow = getattr(orchestrator, "digital_shadow", None) or DigitalShadow()
-        return shadow.generate_standup_digest()
+        shadow = getattr(orchestrator, "digital_shadow", None)
+        if shadow is None:
+            shadow = DigitalShadow(brain=orchestrator.brain if orchestrator else None)
+            if orchestrator is not None:
+                orchestrator.digital_shadow = shadow
+        return shadow.generate_standup_digest(use_llm=use_llm)
 
     @app.post("/api/code/audit")
     def api_code_audit(p: CodeAuditIn):
@@ -1126,8 +1146,15 @@ def create_app(orchestrator) -> FastAPI:
             for t in (orchestrator.registry.list_all()
                       if orchestrator.registry else [])]}
 
+    _system_state: dict[str, object] = {"ts": 0.0, "data": None, "nvml_handle": None, "nvml_failed": False}
+
     @app.get("/api/system")
     def system() -> dict:
+        now = time.time()
+        cached_data = _system_state.get("data")
+        if isinstance(cached_data, dict) and (now - float(_system_state.get("ts", 0.0))) < 1.5:
+            return cached_data
+
         out = {
             "cpu_pct": None,
             "ram_pct": None,
@@ -1139,9 +1166,8 @@ def create_app(orchestrator) -> FastAPI:
         }
         try:
             import psutil
-            out["cpu_pct"] = round(float(psutil.cpu_percent(interval=0.3)), 1)
+            out["cpu_pct"] = round(float(psutil.cpu_percent(interval=None)), 1)
             out["ram_pct"] = round(float(psutil.virtual_memory().percent), 1)
-            import os
             out["disk_pct"] = round(float(
                 psutil.disk_usage(os.environ.get("SystemDrive", "C:") + "\\").percent), 1)
             b = psutil.sensors_battery()
@@ -1150,14 +1176,20 @@ def create_app(orchestrator) -> FastAPI:
                 out["power_plugged"] = b.power_plugged
         except Exception:  # noqa: BLE001 — widget "—" dikhayega, crash nahi
             pass
-        try:
-            import pynvml
-            pynvml.nvmlInit()
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            out["gpu_pct"] = float(pynvml.nvmlDeviceGetUtilizationRates(handle).gpu)
-            pynvml.nvmlShutdown()
-        except Exception:  # noqa: BLE001 — GPU row hide (import/driver fail)
-            out["gpu_pct"] = None
+        if not _system_state.get("nvml_failed"):
+            try:
+                import pynvml
+                handle = _system_state.get("nvml_handle")
+                if handle is None:
+                    pynvml.nvmlInit()
+                    handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                    _system_state["nvml_handle"] = handle
+                out["gpu_pct"] = float(pynvml.nvmlDeviceGetUtilizationRates(handle).gpu)
+            except Exception:  # noqa: BLE001 — GPU row hide (import/driver fail)
+                _system_state["nvml_failed"] = True
+                out["gpu_pct"] = None
+        _system_state["ts"] = now
+        _system_state["data"] = out
         return out
 
     @app.get("/api/sentry/status")
@@ -1239,14 +1271,21 @@ def create_app(orchestrator) -> FastAPI:
     TRAINING_LOG = Path("training_log_v3.txt")
     TRAINING_LOG_LEGACY = Path("training_log.txt")
 
+    _training_cache: dict[str, object] = {"done_set": 0, "done_set_ts": 0.0}
+
     def _read_tail(path: Path, lines: int = 60) -> list[str]:
-        """Last N lines of a log file (safe, no crash if missing)."""
+        """Last N lines of a log file using fast tail byte seek (O(1) on large logs)."""
         if not path.exists():
             return []
         try:
-            with path.open("r", encoding="utf-8", errors="ignore") as f:
-                all_lines = f.readlines()
-            return [l.rstrip("\n") for l in all_lines[-lines:]]
+            chunk_bytes = max(65536, lines * 220)
+            with path.open("rb") as f:
+                f.seek(0, os.SEEK_END)
+                size = f.tell()
+                f.seek(max(0, size - chunk_bytes), os.SEEK_SET)
+                raw = f.read().decode("utf-8", errors="ignore")
+            all_lines = raw.splitlines()
+            return [l.rstrip("\r\n") for l in all_lines[-lines:]]
         except OSError:
             return []
 
@@ -1255,15 +1294,20 @@ def create_app(orchestrator) -> FastAPI:
         info = {"set": 0, "total_sets": 107, "pct": 0.0, "eta": "—",
                 "eval_loss": None, "train_loss": None, "status": "idle"}
 
-        # Check completed adapters from disk
-        try:
-            models_dir = Path("models/lumi-qwen3-4b-hinglish")
-            if models_dir.exists():
-                done_sets = [int(d.name.split("_")[1]) for d in models_dir.iterdir() if d.is_dir() and d.name.startswith("set_") and (d / "adapter_model.safetensors").exists()]
-                if done_sets:
-                    info["set"] = max(done_sets) + 1
-        except Exception:
-            pass
+        # Check completed adapters from disk (cached for 15s)
+        now = time.time()
+        if (now - float(_training_cache.get("done_set_ts", 0.0))) > 15.0:
+            try:
+                models_dir = Path("models/lumi-qwen3-4b-hinglish")
+                if models_dir.exists():
+                    done_sets = [int(d.name.split("_")[1]) for d in models_dir.iterdir() if d.is_dir() and d.name.startswith("set_") and (d / "adapter_model.safetensors").exists()]
+                    if done_sets:
+                        _training_cache["done_set"] = max(done_sets) + 1
+                _training_cache["done_set_ts"] = now
+            except Exception:
+                pass
+        if int(_training_cache.get("done_set", 0)) > 0:
+            info["set"] = int(_training_cache["done_set"])
 
         # Parse from log lines
         for line in lines:
@@ -1427,10 +1471,16 @@ def create_app(orchestrator) -> FastAPI:
             "status": prog["status"],
         }
 
+    _models_cache: dict[str, object] = {"ts": 0.0, "data": None}
+
     @app.get("/api/models")
-    def list_models() -> dict:
-        """Ollama models currently downloaded (real, from ollama ps/list)."""
+    def list_models(refresh: bool = False) -> dict:
+        """Ollama models currently downloaded (real, from ollama ps/list with 30s TTL cache)."""
         import subprocess
+        now = time.time()
+        cached = _models_cache.get("data")
+        if not refresh and isinstance(cached, dict) and (now - float(_models_cache.get("ts", 0.0))) < 30.0:
+            return cached
         try:
             out = subprocess.run(["ollama", "list"], capture_output=True,
                                  text=True, timeout=15)
@@ -1443,7 +1493,10 @@ def create_app(orchestrator) -> FastAPI:
                         "size": parts[2] if len(parts) > 2 else "?",
                         "modified": parts[3] if len(parts) > 3 else "?",
                     })
-            return {"models": models}
+            res = {"models": models}
+            _models_cache["ts"] = now
+            _models_cache["data"] = res
+            return res
         except Exception as exc:  # noqa: BLE001
             return {"models": [], "error": str(exc)}
 
@@ -1457,6 +1510,7 @@ def create_app(orchestrator) -> FastAPI:
         try:
             res = subprocess.run(["ollama", "pull", name], capture_output=True,
                                  text=True, timeout=3600)
+            _models_cache["ts"] = 0.0
             return {"ok": res.returncode == 0, "name": name,
                     "stderr_tail": res.stderr[-500:] if res.stderr else ""}
         except subprocess.TimeoutExpired:
@@ -1622,18 +1676,26 @@ def create_app(orchestrator) -> FastAPI:
             }
         return rx.get_router_telemetry()
 
+    _repo_map_cache: dict[str, str] = {}
+
     @app.get("/api/apex/repo")
     def apex_repo(action: str = "map", target: str = "") -> dict:
         """Query RepoASTGraph for structural map, symbol location, or impact radius."""
         from core.repo_graph import RepoASTGraph
-        rg = getattr(orchestrator, "repo_graph", None) or RepoASTGraph(root_dir=".")
+        rg = getattr(orchestrator, "repo_graph", None)
+        if rg is None:
+            rg = RepoASTGraph(root_dir=".")
+            if orchestrator is not None:
+                orchestrator.repo_graph = rg
         if not rg.modules:
             rg.build_graph()
         if action == "locate" and target:
             return {"action": "locate", "target": target, "matches": rg.locate_symbol(target)}
         if action == "impact" and target:
             return rg.analyze_impact_radius(target)
-        return {"action": "map", "repo_map": rg.generate_repo_map(max_files=30)}
+        if "map_30" not in _repo_map_cache:
+            _repo_map_cache["map_30"] = rg.generate_repo_map(max_files=30)
+        return {"action": "map", "repo_map": _repo_map_cache["map_30"]}
 
     @app.get("/api/apex/context")
     def apex_context() -> dict:

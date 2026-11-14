@@ -80,6 +80,8 @@ class WebOperator:
 
     def __init__(self, brain: Any = None):
         self.brain = brain
+        self._tech_briefing_cache: str = ""
+        self._tech_briefing_ts: float = 0.0
 
     def fetch_page(self, url: str, timeout: float = 10.0) -> PageData:
         """Fetches web page via HTTP GET with browser spoofing."""
@@ -177,12 +179,17 @@ class WebOperator:
 
         return "\n".join(summary_lines)
 
-    def fetch_tech_briefing(self) -> str:
-        """Pulls top current tech trends from HackerNews RSS/HTML feed."""
+    def fetch_tech_briefing(self, force_refresh: bool = False) -> str:
+        """Pulls top current tech trends from HackerNews RSS/HTML feed with TTL caching."""
+        import time
+        now = time.time()
+        if not force_refresh and self._tech_briefing_cache and (now - self._tech_briefing_ts) < 300.0:
+            return self._tech_briefing_cache
+
         hn_url = "https://news.ycombinator.com"
         page = self.fetch_page(hn_url)
         if page.status_code >= 400:
-            return "Unable to reach tech news aggregator at this moment."
+            return self._tech_briefing_cache or "Unable to reach tech news aggregator at this moment."
 
         stories = [l for l in page.links if not l["url"].startswith("https://news.ycombinator.com/from?")]
         briefing_lines = [
@@ -203,4 +210,7 @@ class WebOperator:
         if count == 0:
             briefing_lines.append("No active news items parsed from feed.")
 
-        return "\n".join(briefing_lines)
+        result = "\n".join(briefing_lines)
+        self._tech_briefing_cache = result
+        self._tech_briefing_ts = now
+        return result

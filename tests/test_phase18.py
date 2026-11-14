@@ -169,7 +169,8 @@ async def test_cluster_web_api_endpoints(temp_cluster_mesh: ClusterMesh):
 
     app = create_app(mock_orc)
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    headers = {"Authorization": "Bearer lumi_mesh_sovereign_key"}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as client:
         # 1. GET /api/cluster/status
         r_status = await client.get("/api/cluster/status")
         assert r_status.status_code == 200

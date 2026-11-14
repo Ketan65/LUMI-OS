@@ -54,6 +54,8 @@ class ChiefOfStaff:
         self.devlogs_dir = devlogs_dir or DEVLOGS_DIR
         self.audio_dir.mkdir(parents=True, exist_ok=True)
         self.devlogs_dir.mkdir(parents=True, exist_ok=True)
+        self._briefing_cache: dict[str, Any] | None = None
+        self._briefing_cache_ts: float = 0.0
         self._register_tools()
 
     def _register_tools(self) -> None:
@@ -88,7 +90,7 @@ class ChiefOfStaff:
     def _get_hardware_telemetry(self) -> dict[str, Any]:
         """Collects RAM, CPU, battery, and disk metrics."""
         ram = psutil.virtual_memory()
-        cpu_pct = psutil.cpu_percent(interval=0.1)
+        cpu_pct = psutil.cpu_percent(interval=None)
         disk = psutil.disk_usage(".")
         battery = psutil.sensors_battery()
 
@@ -131,6 +133,12 @@ class ChiefOfStaff:
 
     def generate_morning_briefing(self, play_audio: bool = False, synthesize_audio: bool = True) -> dict[str, Any]:
         """Synthesizes executive briefing text and generates speech audio."""
+        now_epoch = time.time()
+        if not play_audio and self._briefing_cache and (now_epoch - self._briefing_cache_ts) < 120.0:
+            cached_audio = self._briefing_cache.get("audio_path")
+            if not synthesize_audio or (cached_audio and Path(cached_audio).exists()):
+                return dict(self._briefing_cache)
+
         telem = self._get_hardware_telemetry()
         commits = self._get_recent_git_activity()
         skills_count = self._get_mastered_skills_count()
@@ -178,7 +186,7 @@ class ChiefOfStaff:
         if play_audio and audio_file.exists():
             self._play_audio_file(audio_file)
 
-        return {
+        result = {
             "success": True,
             "briefing_text": briefing_text,
             "audio_path": str(audio_file) if audio_success else None,
@@ -186,6 +194,9 @@ class ChiefOfStaff:
             "commits_count": len(commits),
             "skills_count": skills_count,
         }
+        self._briefing_cache = result
+        self._briefing_cache_ts = now_epoch
+        return result
 
     async def _synthesize_audio(self, text: str, output_path: Path) -> None:
         """Async edge-tts speech generator."""

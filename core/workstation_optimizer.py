@@ -54,6 +54,12 @@ class WorkstationOptimizer:
         self.workspace_root = workspace_root or Path(__file__).resolve().parent.parent
         self.data_dir = self.workspace_root / "data"
         self.audio_dir = self.data_dir / "audio"
+        self._top_consumers_cache: list[str] = []
+        self._top_consumers_ts: float = 0.0
+        try:
+            psutil.cpu_percent(interval=None)
+        except Exception:
+            pass
         self._register_tools()
 
     def _register_tools(self) -> None:
@@ -81,19 +87,25 @@ class WorkstationOptimizer:
         )
 
     def get_vitals(self) -> dict[str, Any]:
-        """Collects real-time hardware vitals."""
+        """Collects real-time hardware vitals with sub-millisecond non-blocking telemetry."""
         mem = psutil.virtual_memory()
-        cpu = psutil.cpu_percent(interval=0.1)
+        cpu = psutil.cpu_percent(interval=None)
         disk = shutil.disk_usage(str(self.workspace_root))
 
-        # Top 3 processes
-        procs = []
-        for p in psutil.process_iter(["name", "memory_info"]):
-            try:
-                procs.append((p.info["name"], round(p.info["memory_info"].rss / (1024**2), 1)))
-            except Exception:
-                pass
-        procs.sort(key=lambda x: x[1], reverse=True)
+        now = time.time()
+        if not self._top_consumers_cache or (now - self._top_consumers_ts) > 15.0:
+            procs = []
+            for p in psutil.process_iter(["name", "memory_info"]):
+                try:
+                    info = p.info
+                    mem_info = info.get("memory_info")
+                    if mem_info:
+                        procs.append((info.get("name") or "unknown", round(mem_info.rss / (1024**2), 1)))
+                except Exception:
+                    pass
+            procs.sort(key=lambda x: x[1], reverse=True)
+            self._top_consumers_cache = [f"{name} ({rss} MB)" for name, rss in procs[:4]]
+            self._top_consumers_ts = now
 
         return {
             "status": "healthy",
@@ -103,7 +115,7 @@ class WorkstationOptimizer:
             "ram_available_gb": round(mem.available / (1024**3), 2),
             "ram_usage_pct": mem.percent,
             "disk_free_gb": round(disk.free / (1024**3), 2),
-            "top_consumers": [f"{name} ({rss} MB)" for name, rss in procs[:4]],
+            "top_consumers": list(self._top_consumers_cache),
         }
 
     def optimize_all(self, max_audio_age_seconds: int = 1800) -> dict[str, Any]:
@@ -165,7 +177,7 @@ class WorkstationOptimizer:
         mem = psutil.virtual_memory()
         sys_mem_after_mb = mem.used / (1024**2)
         ram_freed = max(0.0, ram_before_mb - ram_after_mb, sys_mem_before_mb - sys_mem_after_mb)
-        cpu = psutil.cpu_percent(interval=0.1)
+        cpu = psutil.cpu_percent(interval=None)
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
         report = OptimizationReport(

@@ -236,7 +236,7 @@ def system_info() -> str:
 
         mem = psutil.virtual_memory()
         lines.append(f"RAM: {mem.total // (1024**3)} GB total, {mem.available // (1024**3)} GB available")
-        lines.append(f"CPU usage: {psutil.cpu_percent(interval=0.5)}%")
+        lines.append(f"CPU usage: {psutil.cpu_percent(interval=None)}%")
     except Exception:
         pass
     return "\n".join(lines)

@@ -585,11 +585,38 @@ All functions are verified and ready for production integration.
             logger.error("Failed to submit bounty PR: %s", e)
             return {"status": "error", "error": str(e)}
 
-    def scan_algora_radar(self, max_results: int = 20) -> dict[str, Any]:
+    def scan_algora_radar(self, max_results: int = 20, force_refresh: bool = False) -> dict[str, Any]:
         """Scans GitHub for active Algora bounties and updates data/capital/bounties_radar.json."""
         try:
+            import time
             from core.algora_hunter import AlgoraHunterDaemon
             daemon = AlgoraHunterDaemon(workspace_root=self.workspace_root)
+            if not force_refresh and daemon.radar_file.exists():
+                try:
+                    age = time.time() - daemon.radar_file.stat().st_mtime
+                    if age < 300.0:
+                        cached = json.loads(daemon.radar_file.read_text(encoding="utf-8"))
+                        all_c = cached.get("all_candidates", [])
+                        fresh_c = cached.get("fresh_targets", [])
+                        return {
+                            "status": "success",
+                            "cached": True,
+                            "total_candidates": len(all_c),
+                            "fresh_targets": [c.get("issue_url") for c in fresh_c if isinstance(c, dict)],
+                            "radar_file": str(daemon.radar_file),
+                            "top_rewards": [
+                                {
+                                    "repo": c.get("repo"),
+                                    "title": c.get("title"),
+                                    "reward_usd": c.get("reward_usd"),
+                                    "url": c.get("issue_url"),
+                                }
+                                for c in all_c[:5]
+                                if isinstance(c, dict)
+                            ],
+                        }
+                except Exception:
+                    pass
             candidates = daemon.scan_fresh_bounties(max_results=max_results)
             return {
                 "status": "success",

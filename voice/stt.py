@@ -10,16 +10,19 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
-from faster_whisper import WhisperModel
+
+_CUDA_DLLS_CONFIGURED = False
 
 
 def _setup_cuda_dlls() -> None:
     """Ensure Windows dynamic loader can find cublas64_12.dll and cudnn from torch/nvidia packages."""
-    if os.name != "nt":
+    global _CUDA_DLLS_CONFIGURED
+    if _CUDA_DLLS_CONFIGURED or os.name != "nt":
         return
+    _CUDA_DLLS_CONFIGURED = True
     candidate_dirs: list[Path] = []
     # 1. From torch
     try:
@@ -47,9 +50,6 @@ def _setup_cuda_dlls() -> None:
             os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
 
 
-_setup_cuda_dlls()
-
-
 class STT:
     def __init__(
         self,
@@ -62,13 +62,14 @@ class STT:
         self.language = language
         self.compute_type = compute_type
         self.device = device
-        self._model: Optional[WhisperModel] = None
+        self._model: Optional[Any] = None
 
-    def _load(self) -> WhisperModel:
+    def _load(self) -> Any:
         if self._model is not None:
             return self._model
 
         _setup_cuda_dlls()
+        from faster_whisper import WhisperModel
         target_dev = self.device
         target_compute = self.compute_type
 
@@ -159,7 +160,21 @@ def _get_default_stt() -> STT:
     return _default_stt
 
 
-def transcribe(audio: np.ndarray, sample_rate: int = 16000) -> str:
-    """Module-level convenience wrapper around STT.transcribe."""
-    return _get_default_stt().transcribe(audio, sample_rate)
+def transcribe(
+    audio: np.ndarray | str | Path,
+    sample_rate: int = 16000,
+    model: str = "small",
+    language: str = "auto",
+    device: str = "auto",
+    initial_prompt: Optional[str] = None,
+) -> str:
+    """Module-level convenience wrapper around STT.transcribe and STT.transcribe_file."""
+    stt_inst = _get_default_stt()
+    if model and stt_inst.model_name != model:
+        stt_inst.model_name = model
+    if language and stt_inst.language != language:
+        stt_inst.language = language
+    if isinstance(audio, (str, Path)):
+        return stt_inst.transcribe_file(audio)
+    return stt_inst.transcribe(audio, sample_rate)
 
