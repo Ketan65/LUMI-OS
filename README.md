@@ -7,13 +7,14 @@
 [![Version](https://img.shields.io/badge/Edition-v35.0_Stark_Apex_Protocol-00f2fe?style=for-the-badge&logo=probot&logoColor=white)](https://github.com/Ketan65/LUMI-OS)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-38bdf8?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/Pytest_Suite-100%25_Passing-00ff87?style=for-the-badge&logo=pytest&logoColor=black)](tests/)
-[![Tools](https://img.shields.io/badge/Sovereign_Arsenal-95%2B_Active_Tools-a855f7?style=for-the-badge&logo=serverless&logoColor=white)](tools/)
-[![Security](https://img.shields.io/badge/VAPT_Cortex-AST_Taint_%2B_CVSS_v3.1-f59e0b?style=for-the-badge&logo=shield&logoColor=black)](SECURITY.md)
+[![Tools](https://img.shields.io/badge/Sovereign_Arsenal-115%2B_Active_Tools-a855f7?style=for-the-badge&logo=serverless&logoColor=white)](tools/)
+[![Voice](https://img.shields.io/badge/Kokoro_82M_ONNX-Offline_Neural_TTS-ec4899?style=for-the-badge&logo=soundcloud&logoColor=white)](voice/)
+[![Security](https://img.shields.io/badge/VAPT_Cortex-AST_Taint_%2B_Red_Team_Shield-f59e0b?style=for-the-badge&logo=shield&logoColor=black)](SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <b>A Local-First, Sovereign Personal AI Operating System & Autonomous Engineering Cortex</b><br />
-  <i>Combining a 4-Way LLM Brain Router, Multi-Agent Swarm IDE, AST Taint VAPT Auto-Patcher, Counterfactual World-Model Sandbox, Topological Wave DAG Executor, Temporal Knowledge Graph, and Real-Time Neural Voice Cockpit.</i>
+  <b>A Local-First, Sovereign Personal AI Operating System & Autonomous Engineering Cortex (v44.0)</b><br />
+  <i>Sub-Millisecond Tier-0 Reflex Router · Offline Kokoro Neural Voice · 4-Agent Coding Swarm · Red Team Prompt-Injection Shield · Autonomous Bounty & Freelance Autopilot · AST VAPT Auto-Patcher · Real-Time Cyberpunk Cockpit.</i>
 </p>
 
 <p align="center">

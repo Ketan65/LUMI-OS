@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-ARTIFACT_DIR = Path(r"C:\Users\Asus\.gemini\antigravity\brain\7d5dba19-4ef4-4e61-a4ac-a17c09415d67\proofs")
+ARTIFACT_DIR = Path(os.environ.get("LUMI_PROOFS_DIR", Path(__file__).resolve().parent.parent / "data" / "screenshots" / "proofs"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_fonts():

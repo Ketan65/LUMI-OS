@@ -64,7 +64,7 @@ def test_income_autopilot_live_lead_harvesting(tmp_path: Path):
 
 
 def test_income_autopilot_commercial_bundle_upgrade():
-    daemon = IncomeAutopilotDaemon(workspace_root=Path(r"C:\Users\Asus\C_Root_Projects\LUMI"))
+    daemon = IncomeAutopilotDaemon(workspace_root=Path(__file__).resolve().parent.parent)
     res = daemon.upgrade_commercial_fastapi_bundle()
     zp = Path(res["zip_path"])
     assert zp.exists()

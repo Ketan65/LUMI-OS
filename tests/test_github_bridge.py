@@ -14,7 +14,7 @@ def test_github_bridge_no_token():
 
 
 def test_github_bridge_honeypot_interception():
-    engine = GitHubBridgeEngine(token="ghp_dummy1234567890abcdef")
+    engine = GitHubBridgeEngine(token="mock_token_1234567890abcdef")
     
     # Honeypot keyword check
     safe, reason = engine.is_safe_target(
@@ -45,7 +45,7 @@ def test_github_bridge_honeypot_interception():
 
 
 def test_github_bridge_verify_auth_success():
-    engine = GitHubBridgeEngine(token="ghp_mocked_valid_token_xyz")
+    engine = GitHubBridgeEngine(token="mock_valid_token_xyz12345")
     with patch.object(engine, "_request") as mock_req:
         mock_req.side_effect = [
             (200, {"login": "octocat", "id": 1}),
@@ -59,7 +59,7 @@ def test_github_bridge_verify_auth_success():
 
 
 def test_github_bridge_create_pr_success():
-    engine = GitHubBridgeEngine(token="ghp_mocked_valid_token_xyz")
+    engine = GitHubBridgeEngine(token="mock_valid_token_xyz12345")
     with patch.object(engine, "_request") as mock_req:
         mock_req.return_value = (
             201,
