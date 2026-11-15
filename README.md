@@ -4,7 +4,7 @@
 
 <br />
 
-[![Version](https://img.shields.io/badge/Edition-v35.0_Stark_Apex_Protocol-00f2fe?style=for-the-badge&logo=probot&logoColor=white)](https://github.com/Ketan65/LUMI-OS)
+[![Version](https://img.shields.io/badge/Edition-v45.0_Sovereign_AI_Engineer-00f2fe?style=for-the-badge&logo=probot&logoColor=white)](#)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-38bdf8?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/Pytest_Suite-100%25_Passing-00ff87?style=for-the-badge&logo=pytest&logoColor=black)](tests/)
 [![Tools](https://img.shields.io/badge/Sovereign_Arsenal-115%2B_Active_Tools-a855f7?style=for-the-badge&logo=serverless&logoColor=white)](tools/)
@@ -13,20 +13,52 @@
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <b>A Local-First, Sovereign Personal AI Operating System & Autonomous Engineering Cortex (v44.0)</b><br />
-  <i>Sub-Millisecond Tier-0 Reflex Router · Offline Kokoro Neural Voice · 4-Agent Coding Swarm · Red Team Prompt-Injection Shield · Autonomous Bounty & Freelance Autopilot · AST VAPT Auto-Patcher · Real-Time Cyberpunk Cockpit.</i>
+  <b>The Sovereign Local-First AI Software Engineer & Workstation Cockpit</b><br />
+  <i>Runs 100% Free on Your RTX GPU · Auto-Verifies Every Code Edit with AST + Pytest · Context-Isolated Subagents · RLVR Self-Evolving Gym · On-Demand 550B Cloud Escalation · &lt;2ms Cyberpunk Cockpit.</i>
 </p>
 
 <p align="center">
+  <a href="#-why-lumi-os-vs-cloud-wrappers"><b>🔥 Why LUMI-OS</b></a> ·
+  <a href="#-self-verifying-ai-software-engineer-5-core-pillars"><b>🛠️ Self-Verifying Coding Engine</b></a> ·
   <a href="#-omni-cockpit-visual-showcase"><b>🖥️ Cockpit Showcase</b></a> ·
   <a href="#-omega-singularity-engines-phases-2428"><b>⚡ Omega Singularity</b></a> ·
-  <a href="#-system-architecture"><b>🧬 Architecture</b></a> ·
-  <a href="#-28-phase-capability-matrix"><b>🚀 28 Phases</b></a> ·
-  <a href="#-zero-trust-security--taint-gate"><b>🛡️ Security Gate</b></a> ·
-  <a href="#-60-second-quickstart"><b>⚙️ Quickstart</b></a>
+  <a href="#-60-second-quickstart"><b>⚙️ 1-Click Quickstart</b></a>
 </p>
 
 </div>
+
+---
+
+## 🔥 Why LUMI-OS? (vs. Cloud Subscriptions & Basic Local Wrappers)
+
+Most open-source AI assistants are thin 300-line API wrappers, while commercial AI IDEs lock you into `$20–$40/month` subscriptions and upload your proprietary codebase to external clouds. **LUMI-OS (`51,000+ LOC`)** is an end-to-end **Sovereign AI Software Engineering OS**:
+
+| Capability | Cloud AI IDEs (`$20/mo`) | Basic Local Wrappers | **LUMI-OS (Sovereign Engine)** |
+| :--- | :---: | :---: | :---: |
+| **Monthly Cost & Data Privacy** | `$20–$40/mo`, code sent to cloud | Free, local | **100% Free Local Default + On-Demand Cloud Escalation** |
+| **Broken Indentation / Syntax Edits** | Occasional broken diffs | Frequent on `8B` models | **Fuzzy Block Matcher + Pre-Save `ast.parse` Auto-Rollback** |
+| **Post-Edit Test Verification** | Manual / prompted | None | **Automatic `pytest` Execution After Every `.py` Edit** |
+| **Long-Session Context Rot** | Compaction delays | Severe after 5+ files | **Context-Isolated Subagents (`<1,200 char` distilled output)** |
+| **Learning From Past Mistakes** | Static weights | None | **RLVR Verifiable-Reward Gym (`+1.0`/`-1.0` GRPO JSONL export)** |
+| **Cockpit & Voice Latency** | Text-only IDE | Slow polling | **`<2ms` GET APIs + Offline Kokoro ONNX Neural Voice** |
+
+---
+
+## 🛠️ Self-Verifying AI Software Engineer (5 Core Pillars)
+
+1. **AST-Guarded Fuzzy File Surgery ([`tools/files.py`](tools/files.py)):**
+   - **Indentation & CRLF-Tolerant Fuzzy Replacement (`_fuzzy_replace`):** Eliminates failed edits when local `8B` models slightly misalign leading whitespace.
+   - **Pre-Write Compiler Gate (`_verify_python_syntax`):** Validates every `.py` mutation via `ast.parse` *before* committing to disk — automatically rolling back on `SyntaxError`.
+2. **Auto-Architect AST Blueprint & Auto-Pytest Verifier ([`core/orchestrator.py`](core/orchestrator.py)):**
+   - Automatically injects repository AST symbol locations (`[AUTO-ARCHITECT AST CONTEXT]`) in `<2ms` on coding/refactoring tasks (or generates a 4-point blueprint via `/architect <goal>`).
+   - Automatically runs matching `test_*.py` suites immediately after every `write_file` / `edit_file` call (`_auto_verify_edit`).
+3. **Context-Isolated Subagent Engine ([`core/subagents.py`](core/subagents.py)):**
+   - Spawns isolated `research`, `verifier`, and `scout` subagents (`invoke_subagent` / `/subagent`) that execute multi-step tool loops in a private buffer without polluting `Orchestrator.session`, returning only a `<1,200 char` summary.
+4. **RLVR Verifiable-Reward Gym ([`evolution/dpo_flywheel.py`](evolution/dpo_flywheel.py)):**
+   - Every compiler/pytest-verified edit automatically records a deterministic reward (`+1.0` on pass, `-1.0` on fail) into `data/rlvr_trajectories.jsonl` (`/rlvr` & `/rlvr export`) for Unsloth GRPO / QLoRA fine-tuning.
+5. **Hybrid Local + 550B Cloud Escalation ([`brain/router.py`](brain/router.py)) + Reactive Wakeup:**
+   - Runs 100% free on local Ollama GPU (`prefer_local`) by default, with 1-command switching to `/model hybrid` (auto-escalates to `nvidia/nemotron-3-ultra-550b-a55b` on tool errors or multi-file architecture), `/model cloud`, or `/model gemini`.
+   - Background missions (`AsyncMissionQueue`) push completion events directly into `Orchestrator._wakeup_inbox` for non-polling reactive wakeup.
 
 ---
 
@@ -143,16 +175,17 @@ flowchart TB
 
 ---
 
-## 🔀 4-Way Sovereign Brain Router
+## 🔀 5-Mode Sovereign Brain Router
 
 Switch inference engines instantaneously at runtime without restarting via `/model`:
 
 | Slash Command | Active Engine | Target Use Case |
 | :--- | :--- | :--- |
-| `/model hermes` | **Ollama `hermes3:latest` (8B)** | Fast agentic tool calling, uncensored technical reasoning, low-latency cockpit control |
-| `/model qwen` | **Ollama `qwen3:8b`** | Deep code synthesis, structured JSON generation, mathematical & algorithmic analysis |
-| `/model local` | **HuggingFace Local + LoRA Adapter** | Offline custom fine-tuned weights (`models/lumi-finetuned-merged`) |
-| `/model cloud` | **NVIDIA NIM (`Llama-3.3-70B-Instruct`)** | Heavy cloud fallback for massive context synthesis (API key via `NVIDIA_API_KEY` env var) |
+| `/model local` | **Ollama Local GPU (`hermes3:latest` / `qwen3:8b`)** | Default 100% free, zero-latency local agentic execution |
+| `/model hybrid` | **Local GPU + Auto Cloud 550B Escalation** | Runs routine turns locally; auto-escalates to 550B Cloud on tool errors or multi-file refactors |
+| `/model cloud` | **NVIDIA NIM (`nvidia/nemotron-3-ultra-550b-a55b`)** | Frontier 550B parameter reasoning for heavy multi-file architecture |
+| `/model gemini` | **Google Gemini (`gemini-3-flash-preview`)** | Ultra-fast multimodal & long-context cloud synthesis |
+| `/model hermes` / `/model qwen` | **Pin Specific Local Ollama Model** | Hot-switch between `hermes3:latest` and `qwen3:8b` on local VRAM |
 
 ---
 
@@ -202,34 +235,31 @@ Every tool invocation passes through [`safety/gate.py`](safety/gate.py) before e
 
 ## ⚙️ 60-Second Quickstart
 
-### 1. Clone & Install Dependencies
+### Option A: One-Click Windows Bootstrapper (Recommended)
+Double-click or run `start_lumi.bat` — it automatically runs the preflight doctor, prepares `workspace/` & `data/`, checks your Python & Ollama setup, and launches the Web Cockpit:
 ```powershell
-git clone https://github.com/Ketan65/LUMI-OS.git
-cd LUMI-OS
+.\start_lumi.bat
+```
+
+### Option B: Manual Clone & Launch
+```powershell
 pip install -r requirements.txt
-```
-
-### 2. Pull Local Ollama Models (Recommended)
-```powershell
 ollama pull hermes3:latest
-ollama pull qwen3:8b
-```
 
-### 3. Launch LUMI-OS
-```powershell
+# Run 1-second environment preflight check
+python scripts/quickstart_doctor.py
+
+# Run the 60-second Self-Verifying AI Engineer live showcase
+python scripts/run_60s_showcase.py
+
 # Launch the Cyberpunk Omni-Cockpit Web UI -> http://127.0.0.1:8765
 python main.py --web
-
-# Or use the one-click Windows launcher
-.\start_lumi.bat
-
-# Or launch in Interactive Terminal CLI mode
-python main.py
 ```
 
-*(Optional)* Configure cloud fallback or Telegram in environment variables (never stored in plaintext config):
+*(Optional)* Configure on-demand Cloud 550B / Gemini escalation or Telegram in environment variables:
 ```powershell
 setx NVIDIA_API_KEY "nvapi-..."
+setx GEMINI_API_KEY "AIza..."
 setx TELEGRAM_BOT_TOKEN "..."
 ```
 
@@ -240,12 +270,14 @@ setx TELEGRAM_BOT_TOKEN "..."
 ### Interactive Slash Directives
 | Command | Action |
 | :--- | :--- |
+| `/model local\|hybrid\|cloud\|gemini` | Hot-switch between 100% free Local GPU, Hybrid auto-escalation, 550B Cloud, or Gemini |
+| `/architect <coding_goal>` | Synthesize a 4-point AST-grounded engineering blueprint before writing code |
+| `/subagent <research\|verifier\|scout> <task>` | Run multi-step codebase research or verification in a context-isolated subagent |
+| `/rlvr [export]` | View RLVR verifiable-reward pass rates (`+1.0`/`-1.0`) or export GRPO JSONL dataset |
 | `/vapt <file_or_dir>` | Run Cyber-Sentinel AST taint scan, CWE/CVSS v3.1 report, or auto-remediation |
 | `/graph <entity_or_query>` | Query the Temporal Knowledge Graph neighborhood or ecosystem topology |
 | `/dag <mission_goal>` | Decompose and execute a multi-step mission via the Topological Wave DAG Executor |
-| `/simulate <file> :: <goal>` | Run a 3-gate Counterfactual World-Model simulation before committing changes |
-| `/deepthink <problem>` | Invoke System-2 Monte Carlo Tree Search (MCTS) multi-branch reasoning |
-| `/model hermes\|qwen\|local\|cloud` | Hot-switch the active LLM inference engine at runtime |
+| `/simulate <file> <goal>` | Run a 3-gate Counterfactual World-Model simulation before committing changes |
 | `/briefing` | Generate an executive daily standup digest & hardware telemetry summary |
 | `/sentry` | Inspect Ambie-Sentry hardware vitals, battery, RAM load, and git autosave status |
 
