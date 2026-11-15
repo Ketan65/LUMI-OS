@@ -242,6 +242,8 @@ def build_orchestrator(web: bool = False) -> Orchestrator | None:
     )
     from evolution.dpo_flywheel import register_dpo_flywheel_tools
     orchestrator.dpo_flywheel = register_dpo_flywheel_tools(registry)
+    from core.subagents import register_subagent_tools
+    orchestrator.subagent_runner = register_subagent_tools(registry, orchestrator=orchestrator)
     # ── Phase 37–40: AUTONOMOUS IDLE HARVESTER & SELF-HEALING ENGINE ─────
     from core.idle_harvester import register_idle_harvester_tools, get_skill_harvester
     register_idle_harvester_tools(registry)

@@ -30,11 +30,14 @@ class DPOFlywheel:
         self,
         dataset_path: str | Path = "data/dpo_flywheel.jsonl",
         ready_threshold: int = 50,
+        rlvr_path: str | Path = "data/rlvr_trajectories.jsonl",
     ) -> None:
         self.dataset_path = Path(dataset_path)
         self.ready_threshold = max(1, int(ready_threshold))
+        self.rlvr_path = Path(rlvr_path)
         self._lock = threading.Lock()
         self.dataset_path.parent.mkdir(parents=True, exist_ok=True)
+        self.rlvr_path.parent.mkdir(parents=True, exist_ok=True)
 
     def record_preference_pair(
         self,
@@ -171,6 +174,109 @@ class DPOFlywheel:
             "ready": count >= self.ready_threshold,
         }
 
+    # --- RLVR (Reinforcement Learning with Verifiable Rewards) Gym ---
+    def record_rlvr_trajectory(
+        self,
+        prompt: str,
+        tool_name: str,
+        args: dict[str, Any],
+        verifier_output: str,
+        passed: bool,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Records a deterministic compiler/pytest-verified coding trajectory with reward (+1.0 / -1.0)."""
+        reward = 1.0 if passed else -1.0
+        entry = {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "prompt": (prompt or "coding_turn").strip()[:2000],
+            "tool_name": str(tool_name or ""),
+            "arguments": args or {},
+            "verifier_output": (verifier_output or "").strip()[:2000],
+            "passed": bool(passed),
+            "reward": reward,
+            "metadata": metadata or {},
+        }
+        with self._lock:
+            self.rlvr_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.rlvr_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        return {
+            "recorded": True,
+            "reward": reward,
+            "passed": bool(passed),
+            "rlvr_path": str(self.rlvr_path),
+        }
+
+    def _load_rlvr_entries(self) -> list[dict[str, Any]]:
+        if not self.rlvr_path.exists():
+            return []
+        entries: list[dict[str, Any]] = []
+        with self._lock:
+            try:
+                with open(self.rlvr_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            entries.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+            except Exception:
+                return []
+        return entries
+
+    def get_rlvr_stats(self) -> dict[str, Any]:
+        """Returns deterministic RLVR verification pass rate, mean reward, and GRPO readiness."""
+        entries = self._load_rlvr_entries()
+        total = len(entries)
+        passed_count = sum(1 for e in entries if e.get("passed"))
+        failed_count = total - passed_count
+        pass_rate_pct = round((passed_count / max(1, total)) * 100.0, 1) if total > 0 else 0.0
+        mean_reward = (
+            round(sum(float(e.get("reward", 0.0)) for e in entries) / total, 3)
+            if total > 0
+            else 0.0
+        )
+        return {
+            "rlvr_path": str(self.rlvr_path),
+            "total_trajectories": total,
+            "passed_count": passed_count,
+            "failed_count": failed_count,
+            "pass_rate_pct": pass_rate_pct,
+            "mean_reward": mean_reward,
+            "ready_for_grpo": total >= 25 and passed_count >= 10,
+        }
+
+    def export_rlvr_grpo_dataset(
+        self, output_path: str | Path = "data/rlvr_grpo_export.jsonl"
+    ) -> dict[str, Any]:
+        """Exports RLVR trajectories in GRPO/Unsloth verifiable-reward JSONL format."""
+        entries = self._load_rlvr_entries()
+        out_file = Path(output_path)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        count = 0
+        with self._lock:
+            with open(out_file, "w", encoding="utf-8") as f:
+                for e in entries:
+                    if e.get("prompt") and e.get("tool_name"):
+                        row = {
+                            "prompt": e["prompt"],
+                            "action": {
+                                "tool_name": e["tool_name"],
+                                "arguments": e.get("arguments") or {},
+                            },
+                            "verifier_output": e.get("verifier_output", ""),
+                            "reward": float(e.get("reward", -1.0)),
+                        }
+                        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                        count += 1
+        return {
+            "exported_count": count,
+            "output_path": str(out_file),
+            "ready_for_grpo": count >= 25,
+        }
+
 
 _GLOBAL_FLYWHEEL: DPOFlywheel | None = None
 
@@ -228,6 +334,23 @@ def register_dpo_flywheel_tools(
             f"Total flywheel pairs: `{st['total_pairs']}/{st['ready_threshold']}` (`{st['readiness_pct']}%`)."
         )
 
+    def rlvr_gym_status(export_grpo: bool = False) -> str:
+        """Returns RLVR verifiable-reward trajectory statistics and optionally exports GRPO JSONL dataset."""
+        st = flywheel.get_rlvr_stats()
+        badge = "🟢 READY FOR GRPO" if st["ready_for_grpo"] else "🟡 COLLECTING VERIFIED TRAJECTORIES"
+        lines = [
+            f"### 🎯 LUMI RLVR Verifiable-Reward Gym ({badge})",
+            f"- **Trajectories File:** `{st['rlvr_path']}`",
+            f"- **Total Verified Runs:** `{st['total_trajectories']}` (`{st['passed_count']}` passed, `{st['failed_count']}` failed)",
+            f"- **Verification Pass Rate:** `{st['pass_rate_pct']}%` | **Mean Reward:** `{st['mean_reward']:+.3f}`",
+        ]
+        if export_grpo:
+            exp = flywheel.export_rlvr_grpo_dataset()
+            lines.append(
+                f"- **GRPO/Unsloth Export:** Exported `{exp['exported_count']}` trajectories to `{exp['output_path']}`"
+            )
+        return "\n".join(lines)
+
     registry.register(
         Tool(
             name="dpo_flywheel_status",
@@ -267,6 +390,25 @@ def register_dpo_flywheel_tools(
                 "required": ["prompt", "chosen", "rejected"],
             },
             handler=record_dpo_preference,
+            risk="auto",
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="rlvr_gym_status",
+            description="Inspects the RLVR verifiable-reward trajectory dataset (pytest/AST rewards +1.0/-1.0) and optionally exports a GRPO JSONL dataset.",
+            params_schema={
+                "type": "object",
+                "properties": {
+                    "export_grpo": {
+                        "type": "boolean",
+                        "description": "If true, exports a GRPO/Unsloth JSONL dataset to data/rlvr_grpo_export.jsonl.",
+                        "default": False,
+                    },
+                },
+            },
+            handler=rlvr_gym_status,
             risk="auto",
         )
     )

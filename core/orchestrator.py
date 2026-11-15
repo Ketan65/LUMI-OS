@@ -70,7 +70,21 @@ class Orchestrator:
         self.context_sensor = None
         self.mission_queue = None
         self.dpo_flywheel = None
+        self.subagent_runner = None
+        self._wakeup_inbox: list[dict] = []
         self._failed_tool_records: dict[str, dict] = {}
+
+    def push_wakeup_notification(self, event: dict) -> None:
+        """Thread-safe reactive wakeup notification pushed by background missions/subagents."""
+        if not isinstance(event, dict):
+            return
+        self._wakeup_inbox.append(dict(event))
+
+    def drain_wakeup_notifications(self) -> list[dict]:
+        """Atomically drain pending background wakeup events."""
+        items = list(self._wakeup_inbox)
+        self._wakeup_inbox.clear()
+        return items
 
     # -- two-phase architect planner + verification hooks ------------------
     def plan(self, goal: str = "") -> str:
@@ -486,6 +500,22 @@ class Orchestrator:
                 return False, tool.handler(export_trl=export_flag)
             from evolution.dpo_flywheel import get_dpo_flywheel
             return False, str(get_dpo_flywheel().get_flywheel_stats())
+        if name == "/rlvr":
+            export_flag = "export" in cmd.lower()
+            tool = self.registry.get("rlvr_gym_status") if self.registry else None
+            if tool:
+                return False, tool.handler(export_grpo=export_flag)
+            from evolution.dpo_flywheel import get_dpo_flywheel
+            fw = getattr(self, "dpo_flywheel", None) or get_dpo_flywheel()
+            return False, str(fw.get_rlvr_stats())
+        if name == "/subagent":
+            parts = cmd.split(maxsplit=2)
+            if len(parts) < 3:
+                return False, "usage: /subagent <research|verifier|scout> <task>"
+            from core.subagents import SubagentRunner
+            runner = getattr(self, "subagent_runner", None) or SubagentRunner(orchestrator=self)
+            res = runner.run_subagent(role=parts[1], task=parts[2])
+            return False, f"### 🕵️ Subagent [{res['role'].upper()}] ({res['steps_taken']} steps)\n{res['summary']}"
         if name in {"/harvest", "/evolve"}:
             tool = self.registry.get("harvest_market_skill") if self.registry else None
             if tool:
@@ -574,7 +604,7 @@ class Orchestrator:
         return False, ("command nahi pehchana — /history /audit /tools /model "
                        "/projects /use <naam> /new /journal /skills /skill "
                        "/evolution /eval /alerts /values /decide <situation> "
-                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /reflex /repo /context /missions /dpo /harvest /heal /backup ya exit")
+                       "/facts /remember /forget /mcp /desktop /reminders /briefing /plan /sentry /swarm /vault /browse /tech /nexus /research /shadow /code /optimize /graph /vapt /dag /simulate /forge /reflex /repo /context /missions /dpo /rlvr /subagent /architect /harvest /heal /backup ya exit")
 
     # -- skills (Task O): list + approve/retire/save + use accounting --------
     def skills_list(self) -> str:
@@ -818,6 +848,7 @@ class Orchestrator:
             harvester.record_user_activity()
 
         # --- DEPT 3: ACTIVE CONTEXT SENSOR AUTO-INJECTION ---
+        self._current_user_input = user_input
         sensor = getattr(self, "context_sensor", None)
         llm_user_content = user_input
         if sensor and hasattr(sensor, "should_auto_inject_context"):
@@ -830,6 +861,21 @@ class Orchestrator:
             except Exception:
                 pass
 
+        # --- REACTIVE BACKGROUND MISSION WAKEUP INJECTION ---
+        wakeups = self.drain_wakeup_notifications()
+        if wakeups:
+            yield {"type": "wakeup", "notifications": wakeups}
+            wakeup_lines: list[str] = []
+            for w in wakeups:
+                mid = w.get("mission_id", "unknown")
+                mname = w.get("name", "Background Mission")
+                mstatus = w.get("status", "completed")
+                mres = str(w.get("result") or w.get("error") or "").strip()[:400]
+                wakeup_lines.append(
+                    f"[BACKGROUND TASK WAKEUP]: Mission {mid} ({mname}) finished with status {mstatus}: {mres}"
+                )
+            llm_user_content = "\n".join(wakeup_lines) + "\n\n" + llm_user_content
+
         self.session.append({"role": "user", "content": llm_user_content})
         self.session = compact_session_history(self.session, num_ctx=8192, max_ratio=0.65)
         self._persist("user", user_input)
@@ -838,7 +884,7 @@ class Orchestrator:
         # --- DEPT 1: TIER-0 DETERMINISTIC REFLEX (<5ms) & DYNAMIC TOP-K TOOL PRUNING ---
         all_schemas = self.registry.to_llm_schemas() if self.registry else []
         rx = getattr(self, "reflex_router", None)
-        if rx is not None and self.config.get("reflex_tier0", True):
+        if rx is not None and not wakeups and self.config.get("reflex_tier0", True):
             reflex_hit = rx.check_tier0_reflex(
                 user_input,
                 context={
@@ -1023,9 +1069,34 @@ class Orchestrator:
                 self._turn_tainted = True
                 result = f'<untrusted source="{name}">\n{result}\n</untrusted>'
             if name in {"write_file", "edit_file"} and not result.startswith(("Error:", "Permission needed:", "Ye folder")):
-                result += self._auto_verify_edit(name, args)
+                verify_note = self._auto_verify_edit(name, args)
+                result += verify_note
+                if verify_note and getattr(self, "dpo_flywheel", None) and hasattr(self.dpo_flywheel, "record_rlvr_trajectory"):
+                    try:
+                        self.dpo_flywheel.record_rlvr_trajectory(
+                            prompt=getattr(self, "_current_user_input", "") or self._last_turn[0] or "coding_turn",
+                            tool_name=name,
+                            args=args,
+                            verifier_output=verify_note.strip(),
+                            passed=("FAILED" not in verify_note),
+                        )
+                    except Exception:
+                        pass
             self._finish(call, result, name, args, decision, reason)
             return
+
+        self._failed_tool_records[name] = {"args": args, "error": result}
+        attempts = self._retries.get(key, 0) + 1
+        self._retries[key] = attempts
+        if attempts >= 2:                        # round 2 failed — give up, audit it
+            self._retries.pop(key, None)
+            self._alert("WARN", "tool_fail",    # Task Q: user ko turant dikhe
+                        f"{name} fail after retry — {result[:80]}")
+            self._finish(call, f"tool failed after retry — {result}", name,
+                         args, "error", reason, retry_used=1)
+        else:                                     # round 1 failed — one fix chance
+            self._finish(call, f"{result} — fix & retry kar sakte ho (1 chance left)",
+                         name, args, None)
 
     def _auto_verify_edit(self, tool_name: str, args: dict) -> str:
         """Automatically verify edited/written Python files with matching pytest tests when available."""
@@ -1062,19 +1133,6 @@ class Orchestrator:
                 except Exception as exc:
                     return f"\n\n[Auto-Verifier] pytest {resolved.name}: FAILED ❌\n{exc}"
         return "\n[Auto-Verifier] AST Syntax Validated ✅"
-
-        self._failed_tool_records[name] = {"args": args, "error": result}
-        attempts = self._retries.get(key, 0) + 1
-        self._retries[key] = attempts
-        if attempts >= 2:                        # round 2 failed — give up, audit it
-            self._retries.pop(key, None)
-            self._alert("WARN", "tool_fail",    # Task Q: user ko turant dikhe
-                        f"{name} fail after retry — {result[:80]}")
-            self._finish(call, f"tool failed after retry — {result}", name,
-                         args, "error", reason, retry_used=1)
-        else:                                     # round 1 failed — one fix chance
-            self._finish(call, f"{result} — fix & retry kar sakte ho (1 chance left)",
-                         name, args, None)
 
     def _finish(self, call: dict, result: str, name: str, args: dict,
                 decision: str | None, reason: str = "", retry_used: int = 0) -> None:

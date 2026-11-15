@@ -17,6 +17,11 @@ def register_mission_queue_tools(
 ) -> AsyncMissionQueue:
     queue = get_mission_queue(max_workers=2)
     resolved_brain = brain or getattr(orchestrator, "brain", None)
+    if orchestrator is not None and hasattr(orchestrator, "push_wakeup_notification"):
+        def _on_mission_complete(snapshot: dict[str, Any]) -> None:
+            orchestrator.push_wakeup_notification(snapshot)
+
+        queue.on_complete = _on_mission_complete
 
     def dispatch_background_mission(
         mission_goal: str,
