@@ -15,7 +15,12 @@ PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     "nvidia": {
         "base_url": "https://integrate.api.nvidia.com/v1",
         "env_key": "NVIDIA_API_KEY",
-        "default_model": "meta/llama-3.2-11b-vision-instruct",
+        "default_model": "nvidia/nemotron-3-ultra-550b-a55b",
+    },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "env_key": "GEMINI_API_KEY",
+        "default_model": "gemini-3-flash-preview",
     },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",

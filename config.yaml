@@ -187,7 +187,7 @@ router:
   enabled: true
   policy: prefer_local       # prefer_local | prefer_cloud (runtime: /model)
   cloud_provider: nvidia
-  cloud_model: meta/llama-3.2-11b-vision-instruct  # active live model on build.nvidia.com
+  cloud_model: nvidia/nemotron-3-ultra-550b-a55b  # 550B model when switched via /model cloud
   fallback_to_local: true
   circuit_fail_threshold: 3 # utni baar cloud fail = N sec ke liye circuit open
   circuit_cooldown_s: 120   # offline stretch me har turn ka timeout stall nahi

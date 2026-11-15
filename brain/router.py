@@ -10,7 +10,7 @@ from pathlib import Path
 
 from brain.base import Brain, BrainReply
 
-LABEL = {"local": "ollama", "cloud": "nvidia", "hermes": "hermes3", "qwen": "qwen3:8b"}   # log-friendly provider names
+LABEL = {"local": "ollama", "cloud": "nvidia", "gemini": "gemini", "hermes": "hermes3", "qwen": "qwen3:8b"}   # log-friendly provider names
 
 
 class ModelRouter(Brain):
@@ -19,11 +19,13 @@ class ModelRouter(Brain):
     def __init__(self, local: Brain, cloud: Brain | None, config: dict,
                  log_path: str = "data/logs/brain.log",
                  hermes: Brain | None = None,
-                 qwen: Brain | None = None):
+                 qwen: Brain | None = None,
+                 gemini: Brain | None = None):
         self.local = local
         self.cloud = cloud                       # None = key missing / init fail
         self.hermes = hermes                     # None = lazy loaded on /model hermes
         self.qwen = qwen                         # None = lazy loaded on /model qwen
+        self.gemini = gemini                     # None = lazy loaded on /model gemini
         self.config = config or {}
         rc = self.config.get("router") or {}
         self.enabled = bool(rc.get("enabled", True))
@@ -31,6 +33,8 @@ class ModelRouter(Brain):
         self.fallback_to_local = bool(rc.get("fallback_to_local", True))
         self.key_present = bool(
             os.environ.get("NVIDIA_API_KEY")
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
             or os.environ.get("GROQ_API_KEY")
             or os.environ.get("OPENROUTER_API_KEY")
             or os.environ.get("OPENAI_API_KEY")
@@ -86,13 +90,27 @@ class ModelRouter(Brain):
                     return f"Qwen3 8B start nahi hua: {exc}"
             self._override = "qwen"
             return "Qwen3 (8B Tool-Calling Powerhouse) active! Autonomous coding & tool execution ready."
-        if value in {"cloud", "prefer_cloud"}:
+        if value in {"cloud", "prefer_cloud", "nvidia"}:
             if not self.key_present or self.cloud is None:
                 return ("NVIDIA_API_KEY set nahi hai — local chal raha hu. "
                         'setx NVIDIA_API_KEY "nvapi-XXXX" chalao, phir restart')
             self._override = "prefer_cloud"
             return f"Cloud active: NVIDIA {self.cloud_model} (local fallback ON)."
-        return "Policy samjha nahi — use: /model local | /model hermes | /model qwen | /model cloud"
+        if value in {"gemini", "google"}:
+            gem_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+            if not gem_key:
+                return "GEMINI_API_KEY set nahi hai — local chal raha hu."
+            if self.gemini is None:
+                try:
+                    from brain.cloud_adapter import CloudBrain
+                    g_cfg = dict(self.config)
+                    g_cfg["router"] = {**(self.config.get("router") or {}), "cloud_provider": "gemini", "cloud_model": "gemini-3-flash-preview"}
+                    self.gemini = CloudBrain(g_cfg)
+                except Exception as exc:
+                    return f"Gemini start nahi hua: {exc}"
+            self._override = "gemini"
+            return "Cloud active: Google Gemini 3 Flash (local fallback ON)."
+        return "Policy samjha nahi — use: /model local | /model hermes | /model qwen | /model cloud | /model gemini"
 
     def status_text(self) -> str:
         key = "yes" if self.key_present else "no"
@@ -130,6 +148,10 @@ class ModelRouter(Brain):
                 self.qwen = OllamaBrain(config=q_cfg)
             fallback = self.local if self.fallback_to_local else None
             return self._attempt(self.qwen, "qwen", messages, tools, fallback,
+                                 on_token, temperature)
+        if self.active_policy == "gemini" and self.gemini is not None:
+            fallback = self.local if self.fallback_to_local else None
+            return self._attempt(self.gemini, "gemini", messages, tools, fallback,
                                  on_token, temperature)
         if self.active_policy == "prefer_cloud":
             if self.cloud is None:               # key missing → friendly + local
