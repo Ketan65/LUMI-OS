@@ -226,3 +226,37 @@ def test_tool_failure_retry_regression(home: Path, downloads: Path):
     assert turn["reply"] == "Recovered gracefully."
     tool_msgs = [m["content"] for m in orch.session if m.get("role") == "tool"]
     assert any("fix & retry kar sakte ho (1 chance left)" in msg for msg in tool_msgs)
+
+
+def test_automatic_activation_on_normal_task(home: Path, downloads: Path):
+    """Verify ReflexRouter retains invoke_subagent and Orchestrator auto-injects AST context on normal tasks."""
+    from unittest.mock import MagicMock
+    from core.reflex_router import ReflexRouter
+
+    router = ReflexRouter()
+    mock_specs = [
+        {"type": "function", "function": {"name": f"dummy_tool_{i}", "description": f"Generic helper {i}"}}
+        for i in range(60)
+    ] + [
+        {"type": "function", "function": {"name": "read_file", "description": "Read file"}},
+        {"type": "function", "function": {"name": "invoke_subagent", "description": "Isolated subagent"}},
+    ]
+    pruned = router.select_relevant_tools("Refactor authentication module", mock_specs, top_k=14)
+    selected_names = {t["function"]["name"] for t in pruned}
+    assert "invoke_subagent" in selected_names
+
+    allowed = [str(home), str(downloads)]
+    cfg = {"allowed_paths": allowed, "max_iterations": 4}
+    reg = ToolRegistry()
+    brain = FakeBrain([BrainReply(text="Refactored double cleanly.")])
+    orch = Orchestrator(brain=brain, config=cfg, registry=reg, gate=SafetyGate(cfg))
+    mock_rg = MagicMock()
+    mock_rg.modules = {"math_mod": {}}
+    mock_rg.locate_symbol.return_value = [{"file": "workspace/math_mod.py", "line": 1}]
+    orch.repo_graph = mock_rg
+
+    turn = orch.run_turn("Refactor double function in math_mod.py")
+    assert turn["reply"] == "Refactored double cleanly."
+    mock_rg.locate_symbol.assert_called()
+    user_msgs = [m["content"] for m in orch.session if m.get("role") == "user"]
+    assert any("[AUTO-ARCHITECT AST CONTEXT]" in msg and "workspace/math_mod.py" in msg for msg in user_msgs)

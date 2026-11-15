@@ -29,6 +29,7 @@ CORE_TOOL_NAMES: tuple[str, ...] = (
     "edit_file",
     "list_files",
     "run_command",
+    "invoke_subagent",
     "remember_fact",
     "recall_facts",
     "remember",
@@ -54,12 +55,14 @@ DOMAIN_CLUSTERS: dict[str, dict[str, set[str]]] = {
             "bug", "debug", "test", "pytest", "syntax", "lint", "audit", "oracle",
             "compile", "execute", "terminal", "shell", "powershell", "git", "commit",
             "patch", "simulate", "forge", "synthesizer", "complexity",
+            "subagent", "rlvr", "grpo", "verify",
         },
         "tools": {
             "run_python", "run_command", "code_oracle_audit", "code_oracle_complexity",
             "code_oracle_refactor_plan", "simulate_and_apply_patch", "world_model_verify",
             "auto_forge_tool", "list_forged_tools", "edit_file", "grep_search",
             "generate_developer_digest", "git_timeline_analysis",
+            "invoke_subagent", "rlvr_gym_status",
         },
     },
     "vapt_security": {
@@ -139,11 +142,13 @@ DOMAIN_CLUSTERS: dict[str, dict[str, set[str]]] = {
             "swarm", "dag", "mission", "agent", "agents", "multi-agent", "pipeline",
             "workflow", "plan", "planner", "goal", "autonomous", "architect",
             "mcts", "reason", "reasoner", "think", "strategy", "cluster", "mesh",
+            "subagent",
         },
         "tools": {
             "execute_dag_mission", "inspect_dag_history", "execute_goal",
             "swarm_develop_project", "mcts_deep_reason", "cluster_status",
             "cluster_dispatch_task", "register_project", "use_project", "list_projects",
+            "invoke_subagent",
         },
     },
     "capital_revenue": {

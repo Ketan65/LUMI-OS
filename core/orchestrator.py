@@ -145,6 +145,45 @@ class Orchestrator:
         except Exception:
             return fallback_plan
 
+    def _auto_architect_context(self, user_input: str) -> str:
+        """Automatically inject matching Repo AST symbol context on coding/refactor turns (<2ms, 0 LLM calls)."""
+        rg = getattr(self, "repo_graph", None)
+        clean_in = (user_input or "").strip()
+        if rg is None or not clean_in or clean_in.startswith("/"):
+            return ""
+        coding_triggers = {
+            "refactor", "architect", "implement", "redesign",
+            "bug", "fix", "feature", "module", "class", "function",
+        }
+        lower_in = clean_in.lower()
+        if not any(kw in lower_in for kw in coding_triggers):
+            return ""
+        try:
+            if not getattr(rg, "modules", None) and hasattr(rg, "build_graph"):
+                rg.build_graph()
+            if not hasattr(rg, "locate_symbol"):
+                return ""
+            snippets: list[str] = []
+            seen_tokens: set[str] = set()
+            for raw_tok in clean_in.replace("(", " ").replace(")", " ").replace(".", " ").split():
+                tok = raw_tok.strip(".,:;\"'`?!")
+                if len(tok) < 3 or not tok.isidentifier():
+                    continue
+                low = tok.lower()
+                if low in coding_triggers or low in seen_tokens:
+                    continue
+                seen_tokens.add(low)
+                matches = rg.locate_symbol(tok)
+                if matches:
+                    snippets.append(f"- {tok}: {matches[:3]}")
+                if len(snippets) >= 3:
+                    break
+            if not snippets:
+                return ""
+            return "[AUTO-ARCHITECT AST CONTEXT]\n" + "\n".join(snippets)
+        except Exception:
+            return ""
+
     def reflect(self) -> None:
         pass
 
@@ -875,6 +914,12 @@ class Orchestrator:
                     f"[BACKGROUND TASK WAKEUP]: Mission {mid} ({mname}) finished with status {mstatus}: {mres}"
                 )
             llm_user_content = "\n".join(wakeup_lines) + "\n\n" + llm_user_content
+
+        # --- AUTO-ARCHITECT AST CONTEXT INJECTION ---
+        arch_block = self._auto_architect_context(user_input)
+        if arch_block:
+            yield {"type": "architect_context", "summary": arch_block[:240]}
+            llm_user_content = f"{arch_block}\n\n{llm_user_content}"
 
         self.session.append({"role": "user", "content": llm_user_content})
         self.session = compact_session_history(self.session, num_ctx=8192, max_ratio=0.65)
