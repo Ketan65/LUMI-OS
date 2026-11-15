@@ -2,12 +2,71 @@
 
 from __future__ import annotations
 
+import ast
 import fnmatch
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 from tools.registry import Tool, ToolRegistry
+
+
+def _verify_python_syntax(path: Path, code: str) -> tuple[bool, str]:
+    """Validate Python syntax using ast.parse before writing to disk."""
+    if path.suffix.lower() != ".py":
+        return True, ""
+    try:
+        ast.parse(code, filename=str(path))
+        return True, ""
+    except SyntaxError as exc:
+        return False, f"SyntaxError at line {exc.lineno}: {exc.msg}"
+
+
+def _fuzzy_replace(content: str, target: str, replacement: str) -> str | None:
+    """Exact, CRLF-normalized, or unique line-stripped fuzzy block replacement."""
+    if target in content:
+        return content.replace(target, replacement, 1)
+
+    content_lf = content.replace("\r\n", "\n")
+    target_lf = target.replace("\r\n", "\n")
+    repl_lf = replacement.replace("\r\n", "\n")
+    if target_lf in content_lf:
+        return content_lf.replace(target_lf, repl_lf, 1)
+
+    c_lines = content_lf.splitlines()
+    t_lines = [ln.strip() for ln in target_lf.splitlines() if ln.strip()]
+    if not t_lines:
+        return None
+
+    matched_spans: list[tuple[int, int]] = []
+    n_t = len(t_lines)
+    for start in range(len(c_lines)):
+        if c_lines[start].strip() != t_lines[0]:
+            continue
+        ti = 0
+        idx = start
+        while idx < len(c_lines) and ti < n_t:
+            stripped = c_lines[idx].strip()
+            if not stripped:
+                idx += 1
+                continue
+            if stripped == t_lines[ti]:
+                ti += 1
+                idx += 1
+            else:
+                break
+        if ti == n_t:
+            matched_spans.append((start, idx))
+
+    if len(matched_spans) != 1:
+        return None
+
+    s_idx, e_idx = matched_spans[0]
+    new_lines = c_lines[:s_idx] + repl_lf.splitlines() + c_lines[e_idx:]
+    rejoined = "\n".join(new_lines)
+    if content_lf.endswith("\n"):
+        rejoined += "\n"
+    return rejoined
 
 
 def resolve_within(path: str, allowed_paths: list[str]) -> Path | None:
@@ -99,6 +158,9 @@ def register_file_tools(registry: ToolRegistry, allowed_paths: list[str]) -> Non
             with target.open("a", encoding="utf-8") as fh:
                 fh.write(content)
             return f"Append ho gaya: {target.name} (+{len(content)} chars)"
+        ok, err = _verify_python_syntax(target, content)
+        if not ok:
+            return f"Error: Write rejected due to Python {err}. Fix syntax and retry."
         backup_note = ""
         if target.exists():
             # data protection: dated .bak copy BEFORE overwrite
@@ -130,14 +192,18 @@ def register_file_tools(registry: ToolRegistry, allowed_paths: list[str]) -> Non
         if target_path.is_dir():
             return f"Ye folder hai, file nahi: {path}"
         content = target_path.read_text(encoding="utf-8", errors="replace")
-        if target not in content:
-            return f"Error: Target text file me nahi mila. Exact matching required (check whitespace/indentation)."
-        
+        new_content = _fuzzy_replace(content, target, replacement)
+        if new_content is None:
+            return "Error: Target text file me nahi mila. Exact ya line-matched target block dekar retry karo."
+
+        ok, err = _verify_python_syntax(target_path, new_content)
+        if not ok:
+            return f"Error: Edit rolled back due to Python {err}. Fix syntax and retry."
+
         # Automatic backup before edit
         bak = target_path.with_name(f"{target_path.stem}.backup_{datetime.now():%Y%m%d}{target_path.suffix}")
         shutil.copy2(target_path, bak)
-        
-        new_content = content.replace(target, replacement, 1)
+
         target_path.write_text(new_content, encoding="utf-8")
         return f"File edited successfully: {target_path.name} (replaced {len(target)} chars with {len(replacement)} chars). Backup: {bak.name}"
 

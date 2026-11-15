@@ -10,7 +10,7 @@ from pathlib import Path
 
 from brain.base import Brain, BrainReply
 
-LABEL = {"local": "ollama", "cloud": "nvidia", "gemini": "gemini", "hermes": "hermes3", "qwen": "qwen3:8b"}   # log-friendly provider names
+LABEL = {"local": "ollama", "cloud": "nvidia", "gemini": "gemini", "hermes": "hermes3", "qwen": "qwen3:8b", "hybrid": "hybrid"}   # log-friendly provider names
 
 
 class ModelRouter(Brain):
@@ -110,7 +110,30 @@ class ModelRouter(Brain):
                     return f"Gemini start nahi hua: {exc}"
             self._override = "gemini"
             return "Cloud active: Google Gemini 3 Flash (local fallback ON)."
-        return "Policy samjha nahi — use: /model local | /model hermes | /model qwen | /model cloud | /model gemini"
+        if value in {"hybrid", "auto", "smart"}:
+            self._override = "hybrid"
+            return "Hybrid Architect Mode active! Routine turns run on 100% Free Local GPU; complex multi-file coding & error recovery auto-escalate to Cloud 550B."
+        return "Policy samjha nahi — use: /model local | /model hermes | /model qwen | /model cloud | /model gemini | /model hybrid"
+
+    def _should_escalate_to_cloud(self, messages: list[dict]) -> bool:
+        """Auto-escalate complex coding, long prompts, or tool-error recovery turns to cloud."""
+        if self.cloud is None or time.time() < self._cloud_down_until:
+            return False
+        if messages:
+            last_msg = messages[-1]
+            if last_msg.get("role") == "tool":
+                tool_out = str(last_msg.get("content", ""))
+                if any(marker in tool_out for marker in ("Error:", "SyntaxError", "Traceback", "failed")):
+                    return True
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                user_text = str(msg.get("content", "")).lower()
+                if len(user_text) > 450:
+                    return True
+                if any(kw in user_text for kw in ("architect", "refactor", "multi-file", "full project", "production grade", "design system", "complex bug")):
+                    return True
+                break
+        return False
 
     def status_text(self) -> str:
         key = "yes" if self.key_present else "no"
@@ -152,6 +175,13 @@ class ModelRouter(Brain):
         if self.active_policy == "gemini" and self.gemini is not None:
             fallback = self.local if self.fallback_to_local else None
             return self._attempt(self.gemini, "gemini", messages, tools, fallback,
+                                 on_token, temperature)
+        if self.active_policy == "hybrid":
+            if self._should_escalate_to_cloud(messages):
+                fallback = self.local if self.fallback_to_local else None
+                return self._attempt(self.cloud, "cloud", messages, tools, fallback,
+                                     on_token, temperature)
+            return self._attempt(self.local, "local", messages, tools, self.cloud,
                                  on_token, temperature)
         if self.active_policy == "prefer_cloud":
             if self.cloud is None:               # key missing → friendly + local
