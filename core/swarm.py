@@ -49,16 +49,17 @@ Requirements:
 4. Return ONLY the code inside ```python and ``` code fence (or raw code)."""
 
 TESTER_SYSTEM_PROMPT = """You are the Quality Assurance / Test Engineer in LUMI's Autonomous Engineering Swarm.
-Given the source code of the project, write comprehensive test cases using Python's standard `unittest` framework.
+Given the exact source code of the project, write comprehensive test cases using Python's standard `unittest` framework.
 Requirements:
 1. Use `import unittest`.
-2. Test both happy paths and edge cases.
-3. Include `if __name__ == '__main__': unittest.main()`.
-4. Return ONLY the code inside ```python and ``` code fence."""
+2. Carefully read the provided implementation code and match its exact function names, parameter types, return types, and validation rules.
+3. NEVER invent or guess arbitrary floating-point constants (like `3.915447`) in `assertEqual` or `assertAlmostEqual`. For floating-point scores/entropy, assert structural properties (`assertIsInstance(val, float)`, `assertGreater(val, 0.0)`, or compare two inputs `assertGreater(score(strong), score(weak))`).
+4. Include `if __name__ == '__main__': unittest.main()`.
+5. Return ONLY the code inside ```python and ``` code fence."""
 
 DEBUGGER_SYSTEM_PROMPT = """You are the Principal Debugging Engineer in LUMI's Autonomous Engineering Swarm.
-A test suite failed. You are given the original source code and the exact failure traceback.
-Analyze the bug carefully, fix the root cause, and return the complete corrected code.
+A test suite failed. You are given the project files and the exact failure traceback.
+Analyze whether the root cause is a bug in the implementation file OR an invalid/mismatched assertion in the test file, fix the root cause completely, and return the complete corrected file.
 Return ONLY the corrected code inside ```python and ``` code fence."""
 
 
@@ -269,6 +270,10 @@ class TesterAgent:
                 timeout=timeout,
             )
             output = (proc.stdout + "\n" + proc.stderr).strip()
+            # Sanitize absolute filesystem paths in tracebacks for clean UI & OPSEC
+            output = output.replace(str(project_dir.resolve()), f"workspace/{project_dir.name}")
+            output = output.replace(str(project_dir), f"workspace/{project_dir.name}")
+            output = re.sub(r'[A-Za-z]:\\[^"\n]*\\workspace\\', "workspace/", output)
             passed = (
                 proc.returncode == 0
                 and "FAILED" not in output
@@ -306,17 +311,14 @@ class DebuggerAgent:
         )
 
         healed: list[str] = []
+        tester = TesterAgent()
+        current_failing_output = failing_output
         for file_spec in candidate_files:
             file_path = project_dir / file_spec.path
             if not file_path.exists():
                 continue
 
             current_code = file_path.read_text(encoding="utf-8")
-
-            # Check if this file is mentioned in the traceback or is the primary implementation file
-            is_test = file_spec.type == "test" or "test" in file_spec.path.lower()
-            if file_spec.path not in failing_output and is_test and healed:
-                continue
 
             other_files_ctx = "\n\n".join(
                 f"--- Other Project File: `{p}` ---\n```python\n{src[:2000]}\n```"
@@ -326,11 +328,12 @@ class DebuggerAgent:
 
             prompt = (
                 f"A test failure occurred in project `{spec.project_name}`.\n"
-                f"Failing Output & Traceback:\n```\n{failing_output}\n```\n\n"
+                f"Failing Output & Traceback:\n```\n{current_failing_output}\n```\n\n"
                 f"{other_files_ctx}\n\n"
                 f"Target File to Fix: `{file_spec.path}`\n"
                 f"Current Code:\n```python\n{current_code}\n```\n\n"
-                f"Fix the bug in `{file_spec.path}` so all tests pass and imports/signatures match across files. "
+                f"Fix `{file_spec.path}` so all tests pass and imports/signatures/assertions match across files. "
+                f"Never guess arbitrary floating-point constants in test assertions. "
                 f"Return ONLY the complete corrected Python code for `{file_spec.path}`."
             )
 
@@ -347,6 +350,11 @@ class DebuggerAgent:
                     file_path.write_text(fixed_code, encoding="utf-8")
                     all_sources[file_spec.path] = fixed_code
                     healed.append(file_spec.path)
+                    # Re-test immediately so we stop as soon as tests pass or feed fresh traceback to next file
+                    now_passed, fresh_out = tester.run_tests(project_dir)
+                    if now_passed:
+                        break
+                    current_failing_output = fresh_out
             except Exception as exc:
                 print(f"[Debugger] Notice: Error self-healing {file_spec.path}: {exc}")
 
@@ -424,7 +432,7 @@ class SwarmCoordinator:
             f"**Goal:** {goal}",
             f"**Overview:** {spec.overview}",
             f"**Tech Stack:** {', '.join(spec.tech_stack)}",
-            f"**Project Directory:** `{project_dir}`",
+            f"**Project Directory:** `workspace/{spec.project_name}`",
             "",
             "**Generated Files:**",
         ]
@@ -440,11 +448,21 @@ class SwarmCoordinator:
         summary_lines.append("")
         summary_lines.append(f"**Run Command:** `python workspace/{spec.project_name}/main.py`")
 
+        final_contents: dict[str, str] = {}
+        for rel_f in created_files:
+            fp = project_dir / rel_f
+            if fp.is_file():
+                try:
+                    final_contents[rel_f] = fp.read_text(encoding="utf-8")
+                except Exception:
+                    pass
+
         return {
             "ok": passed,
             "project_name": spec.project_name,
-            "project_dir": str(project_dir),
+            "project_dir": f"workspace/{spec.project_name}",
             "files": created_files,
+            "file_contents": final_contents,
             "tests_passed": passed,
             "healing_iterations": healing_iterations,
             "test_output": test_out[:1000],

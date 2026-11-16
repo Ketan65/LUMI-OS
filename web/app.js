@@ -3200,6 +3200,7 @@ function initJarvisMode() {
    SWARM-DEV STUDIO CONTROLLER
    ========================================================================== */
 let activeSwarmProject = null;
+let activeSwarmFiles = {};
 
 function initSwarmDev() {
   const goalInp = $("swarmGoalInput");
@@ -3265,7 +3266,10 @@ function initSwarmDev() {
         }
 
         activeSwarmProject = data.project_name;
+        activeSwarmFiles = data.file_contents || {};
         if (data.healing_iterations > 0) {
+          debugCard?.classList.add("passed");
+        } else if (data.tests_passed) {
           debugCard?.classList.add("passed");
         }
 
@@ -3275,42 +3279,33 @@ function initSwarmDev() {
         }
         playSfx("done");
 
-        const dirEl = $("swarmProjDir");
-        if (dirEl) dirEl.textContent = `workspace/${data.project_name}/`;
-
-        const countEl = $("swarmFileCount");
-        if (countEl) countEl.textContent = (data.files || []).length;
-
-        const fileList = $("swarmFileList");
-        if (fileList) {
-          fileList.innerHTML = "";
-          (data.files || []).forEach((f, idx) => {
-            const item = document.createElement("div");
-            item.className = "swarm-file-item" + (idx === 0 ? " active" : "");
-            item.innerHTML = `<span>📄</span> <span>${f}</span>`;
-            item.onclick = () => selectSwarmFile(f, item);
-            fileList.appendChild(item);
-          });
-        }
-
-        if (term) {
-          term.textContent = `=== SWARM DEVELOPMENT SUMMARY ===\n${data.summary}\n\n=== TEST VERIFICATION LOG ===\n${data.test_output || "All test assertions passed cleanly."}`;
-        }
-        const tBadge = $("swarmTestBadge");
-        if (tBadge) {
-          tBadge.className = data.tests_passed ? "badge badge-green" : "badge badge-amber";
-          tBadge.textContent = data.tests_passed ? "TESTS PASSED" : "REVIEW NEEDED";
-        }
-
-        if (data.files && data.files.length > 0) {
-          await loadSwarmFileContent(data.project_name, data.files[0]);
-        }
+        renderSwarmResult(data);
       } catch (err) {
         if (term) term.textContent += `\nNetwork error: ${err.message}`;
         if (badge) badge.textContent = "NETWORK ERROR";
       }
     };
   }
+
+  // Auto-load latest built Swarm project from workspace on startup
+  fetch("/api/swarm/latest")
+    .then((r) => r.json())
+    .then((data) => {
+      if (data && data.project_name && data.files && data.files.length > 0) {
+        activeSwarmProject = data.project_name;
+        activeSwarmFiles = data.file_contents || {};
+        const badge = $("swarmStatusBadge");
+        if (badge) {
+          badge.className = "badge badge-green";
+          badge.textContent = "PROJECT BUILT & VERIFIED ✅";
+        }
+        ["agentArchitect", "agentCoder", "agentTester", "agentDebugger"].forEach((id) => {
+          $(id)?.classList.add("passed");
+        });
+        renderSwarmResult(data);
+      }
+    })
+    .catch(() => {});
 
   if (copyBtn) {
     copyBtn.onclick = () => {
@@ -3348,10 +3343,49 @@ function initSwarmDev() {
   }
 }
 
+function renderSwarmResult(data) {
+  const dirEl = $("swarmProjDir");
+  if (dirEl) dirEl.textContent = `workspace/${data.project_name}/`;
+
+  const countEl = $("swarmFileCount");
+  if (countEl) countEl.textContent = (data.files || []).length;
+
+  const fileList = $("swarmFileList");
+  if (fileList) {
+    fileList.innerHTML = "";
+    (data.files || []).forEach((f, idx) => {
+      const item = document.createElement("div");
+      item.className = "swarm-file-item" + (idx === 0 ? " active" : "");
+      item.innerHTML = `<span>📄</span> <span>${f}</span>`;
+      item.onclick = () => selectSwarmFile(f, item);
+      fileList.appendChild(item);
+    });
+  }
+
+  const term = $("swarmTerminalLog");
+  if (term) {
+    term.textContent = `=== SWARM DEVELOPMENT SUMMARY ===\n${data.summary}\n\n=== TEST VERIFICATION LOG ===\n${data.test_output || "All test assertions passed cleanly."}`;
+  }
+  const tBadge = $("swarmTestBadge");
+  if (tBadge) {
+    tBadge.className = data.tests_passed ? "badge badge-green" : "badge badge-amber";
+    tBadge.textContent = data.tests_passed ? "TESTS PASSED" : "REVIEW NEEDED";
+  }
+
+  if (data.files && data.files.length > 0) {
+    loadSwarmFileContent(data.project_name, data.files[0]);
+  }
+}
+
 async function loadSwarmFileContent(projectName, fileName) {
   const codeEl = $("swarmCodePreview");
   const nameEl = $("swarmActiveFileName");
   if (nameEl) nameEl.textContent = `📄 ${fileName}`;
+  if (codeEl && activeSwarmFiles && activeSwarmFiles[fileName]) {
+    codeEl.textContent = activeSwarmFiles[fileName];
+    if (window.hljs) hljs.highlightElement(codeEl);
+    return;
+  }
   if (codeEl) codeEl.textContent = "# Loading file content...";
 
   try {

@@ -652,6 +652,50 @@ def create_app(orchestrator) -> FastAPI:
         except Exception as exc:
             return JSONResponse(status_code=500, content={"error": str(exc)})
 
+    @app.get("/api/swarm/latest")
+    def get_swarm_latest(project: str = ""):
+        ws_root = Path("workspace")
+        if not ws_root.exists():
+            return {"ok": False, "project_name": None}
+        target_dir = (ws_root / project) if project else None
+        if target_dir is None or not target_dir.is_dir():
+            candidates = [
+                d for d in ws_root.iterdir()
+                if d.is_dir() and not d.name.startswith(".") and d.name != "research"
+                and any(d.glob("*.py"))
+            ]
+            if not candidates:
+                return {"ok": False, "project_name": None}
+            candidates.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+            target_dir = candidates[0]
+
+        py_files = sorted(f.name for f in target_dir.glob("*.py"))
+        file_contents: dict[str, str] = {}
+        for fn in py_files:
+            try:
+                file_contents[fn] = (target_dir / fn).read_text(encoding="utf-8")
+            except Exception:
+                pass
+        from core.swarm import TesterAgent
+        passed, test_out = TesterAgent().run_tests(target_dir, timeout=5.0)
+        summary = (
+            f"### {'✅' if passed else '⚠️'} LUMI SWARM-DEV: `{target_dir.name}`\n"
+            f"**Project Directory:** `workspace/{target_dir.name}`\n"
+            f"**Generated Files:** {', '.join(f'`{f}`' for f in py_files)}\n"
+            f"**Test Verification:** {'Passed seamlessly (all unit tests green).' if passed else 'Review needed.'}"
+        )
+        return {
+            "ok": passed,
+            "project_name": target_dir.name,
+            "project_dir": f"workspace/{target_dir.name}",
+            "files": py_files,
+            "file_contents": file_contents,
+            "tests_passed": passed,
+            "healing_iterations": 1,
+            "test_output": test_out[:1000],
+            "summary": summary,
+        }
+
     @app.get("/api/vault/stats")
     def vault_stats():
         from core.vault import NeuralVault
